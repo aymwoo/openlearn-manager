@@ -105,8 +105,8 @@ jobs:
         if: ${{ github.event_name == 'push' || inputs.edition == 'both' || inputs.edition == 'lite' }}
         shell: bash
         run: |
-          echo "Collecting Lite bundles..."
-          find src-tauri/target/ -type f \( -name "*.deb" -o -name "*.AppImage" -o -name "*.msi" -o -name "*.exe" -o -name "*.dmg" \) | while read -r file; do
+          echo "Collecting Lite bundles from bundle directory..."
+          find src-tauri/target/ -path "*/bundle/*" -type f \( -name "*.deb" -o -name "*.AppImage" -o -name "*.msi" -o -name "*.exe" -o -name "*.dmg" \) | while read -r file; do
             base=$(basename "$file")
             ext="${base##*.}"
             name="${base%.*}"
@@ -131,8 +131,8 @@ jobs:
         if: ${{ github.event_name == 'push' || inputs.edition == 'both' || inputs.edition == 'full' }}
         shell: bash
         run: |
-          echo "Collecting Full bundles..."
-          find src-tauri/target/ -type f \( -name "*.deb" -o -name "*.AppImage" -o -name "*.msi" -o -name "*.exe" -o -name "*.dmg" \) | while read -r file; do
+          echo "Collecting Full bundles from bundle directory..."
+          find src-tauri/target/ -path "*/bundle/*" -type f \( -name "*.deb" -o -name "*.AppImage" -o -name "*.msi" -o -name "*.exe" -o -name "*.dmg" \) | while read -r file; do
             base=$(basename "$file")
             ext="${base##*.}"
             name="${base%.*}"
