@@ -80,7 +80,8 @@ jobs:
             libwebkit2gtk-4.1-dev \
             libayatana-appindicator3-dev \
             librsvg2-dev \
-            patchelf
+            patchelf \
+            libfuse2
 
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
@@ -98,27 +99,20 @@ jobs:
 
       - name: Build Lite Edition
         if: ${{ github.event_name == 'push' || inputs.edition == 'both' || inputs.edition == 'lite' }}
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tagName: __temp_lite_build__
-          releaseDraft: false
-          prerelease: false
-          args: --target ${{ matrix.target }}
+        run: pnpm tauri build --target ${{ matrix.target }}
 
       - name: Staging Lite artifacts
         if: ${{ github.event_name == 'push' || inputs.edition == 'both' || inputs.edition == 'lite' }}
         shell: bash
         run: |
           echo "Collecting Lite bundles..."
-          find src-tauri/target/${{ matrix.target }}/release/bundle/ -type f \( -name "*.deb" -o -name "*.AppImage" -o -name "*.msi" -o -name "*.exe" -o -name "*.dmg" \) | while read -r file; do
-            dir=$(dirname "$file")
+          find src-tauri/target/ -type f \( -name "*.deb" -o -name "*.AppImage" -o -name "*.msi" -o -name "*.exe" -o -name "*.dmg" \) | while read -r file; do
             base=$(basename "$file")
             ext="${base##*.}"
             name="${base%.*}"
             newname="${name}-Lite.${ext}"
             cp "$file" "release-artifacts/${newname}"
+            rm -f "$file"
             echo "Staged Lite bundle: release-artifacts/${newname}"
           done
 
@@ -131,27 +125,20 @@ jobs:
 
       - name: Build Full Edition
         if: ${{ github.event_name == 'push' || inputs.edition == 'both' || inputs.edition == 'full' }}
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tagName: __temp_full_build__
-          releaseDraft: false
-          prerelease: false
-          args: --target ${{ matrix.target }}
+        run: pnpm tauri build --target ${{ matrix.target }}
 
       - name: Staging Full artifacts
         if: ${{ github.event_name == 'push' || inputs.edition == 'both' || inputs.edition == 'full' }}
         shell: bash
         run: |
           echo "Collecting Full bundles..."
-          find src-tauri/target/${{ matrix.target }}/release/bundle/ -type f \( -name "*.deb" -o -name "*.AppImage" -o -name "*.msi" -o -name "*.exe" -o -name "*.dmg" \) | while read -r file; do
-            dir=$(dirname "$file")
+          find src-tauri/target/ -type f \( -name "*.deb" -o -name "*.AppImage" -o -name "*.msi" -o -name "*.exe" -o -name "*.dmg" \) | while read -r file; do
             base=$(basename "$file")
             ext="${base##*.}"
             name="${base%.*}"
             newname="${name}-Full.${ext}"
             cp "$file" "release-artifacts/${newname}"
+            rm -f "$file"
             echo "Staged Full bundle: release-artifacts/${newname}"
           done
 
