@@ -1,5 +1,12 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import type { LogEntry } from "../types";
+import {
+  DEFAULT_ANSI_STATE,
+  type AnsiSegment,
+  parseAnsiLine,
+  segmentStyle,
+  stripAnsi,
+} from "../utils/ansi";
 
 interface LogConsoleProps {
   logs: LogEntry[];
@@ -14,10 +21,24 @@ interface LogConsoleProps {
   footer?: React.ReactNode;
 }
 
+/** 复制/导出用的纯文本：保留可读内容，去掉颜色码 */
 export const formatLogText = (logs: LogEntry[]): string =>
   logs
-    .map((l) => `[${l.timestamp}] [${l.stream.toUpperCase()}] ${l.message}`)
+    .map((l) => `[${l.timestamp}] [${l.stream.toUpperCase()}] ${stripAnsi(l.message)}`)
     .join("\n");
+
+// stream 徽标配色（日志区固定深色终端底，不随明暗主题切换）
+const STREAM_BADGE: Record<string, string> = {
+  stderr: "bg-rose-950 text-rose-400",
+  system: "bg-blue-950 text-cyan-400",
+  stdout: "bg-slate-800 text-slate-400",
+};
+
+const STREAM_TEXT: Record<string, string> = {
+  stderr: "text-rose-300",
+  system: "text-cyan-300 font-medium",
+  stdout: "text-slate-300",
+};
 
 export const LogConsole: React.FC<LogConsoleProps> = ({
   logs,
@@ -28,17 +49,33 @@ export const LogConsole: React.FC<LogConsoleProps> = ({
   footer,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const visibleLogs = logs.length > maxRows ? logs.slice(logs.length - maxRows) : logs;
+  const visibleLogs = useMemo(
+    () => (logs.length > maxRows ? logs.slice(logs.length - maxRows) : logs),
+    [logs, maxRows]
+  );
+
+  /**
+   * 逐行解析 ANSI，并把上一行结束时的样式状态带下去 ——
+   * CLI 常有「颜色没在行尾重置」的情况，不延续就会出现后半截日志掉色。
+   */
+  const parsedLines = useMemo(() => {
+    let carry = DEFAULT_ANSI_STATE;
+    return visibleLogs.map((entry) => {
+      const { segments, endState } = parseAnsiLine(entry.message, carry);
+      carry = endState;
+      return segments as AnsiSegment[];
+    });
+  }, [visibleLogs]);
 
   useEffect(() => {
     if (autoScroll && containerRef.current) {
       containerRef.current.scrollTop = containerRef.current.scrollHeight;
     }
-  }, [visibleLogs.length, autoScroll]);
+  }, [parsedLines, autoScroll]);
 
   return (
     <div
-      className={`flex flex-col bg-slate-950 border border-slate-800/90 rounded-2xl p-4 shadow-xl font-mono text-xs overflow-hidden ${className}`}
+      className={`font-log flex flex-col bg-slate-950 border border-slate-800/90 rounded-2xl p-4 shadow-xl text-xs overflow-hidden ${className}`}
     >
       <div
         ref={containerRef}
@@ -50,8 +87,8 @@ export const LogConsole: React.FC<LogConsoleProps> = ({
           </div>
         ) : (
           visibleLogs.map((entry, idx) => {
-            const isStderr = entry.stream === "stderr";
-            const isSystem = entry.stream === "system";
+            const badge = STREAM_BADGE[entry.stream] ?? STREAM_BADGE.stdout;
+            const textTone = STREAM_TEXT[entry.stream] ?? STREAM_TEXT.stdout;
 
             return (
               <div
@@ -62,26 +99,26 @@ export const LogConsole: React.FC<LogConsoleProps> = ({
                   [{entry.timestamp}]
                 </span>
                 <span
-                  className={`shrink-0 select-none text-[10px] font-semibold uppercase px-1 rounded ${
-                    isStderr
-                      ? "bg-rose-950 text-rose-400"
-                      : isSystem
-                      ? "bg-blue-950 text-cyan-400"
-                      : "bg-slate-800 text-slate-400"
-                  }`}
+                  className={`shrink-0 select-none text-[10px] font-semibold uppercase px-1 rounded ${badge}`}
                 >
                   {entry.stream}
                 </span>
-                <span
-                  className={`break-all whitespace-pre-wrap ${
-                    isStderr
-                      ? "text-rose-300"
-                      : isSystem
-                      ? "text-cyan-300 font-medium"
-                      : "text-slate-300"
-                  }`}
-                >
-                  {entry.message}
+                <span className={`break-all whitespace-pre-wrap min-w-0 ${textTone}`}>
+                  {parsedLines[idx].length === 0 ? (
+                    "\u00a0"
+                  ) : (
+                    parsedLines[idx].map((seg, segIdx) => {
+                      const style = segmentStyle(seg);
+                      // 无样式就直接输出文本，省掉一层 span
+                      return Object.keys(style).length > 0 ? (
+                        <span key={segIdx} style={style}>
+                          {seg.text}
+                        </span>
+                      ) : (
+                        <React.Fragment key={segIdx}>{seg.text}</React.Fragment>
+                      );
+                    })
+                  )}
                 </span>
               </div>
             );
@@ -90,7 +127,7 @@ export const LogConsole: React.FC<LogConsoleProps> = ({
       </div>
 
       {footer && (
-        <div className="pt-2 mt-2 border-t border-slate-900 flex items-center justify-between text-[11px] text-slate-600">
+        <div className="pt-2 mt-2 border-t border-slate-900 flex items-center justify-between text-[11px] text-slate-500">
           {footer}
         </div>
       )}

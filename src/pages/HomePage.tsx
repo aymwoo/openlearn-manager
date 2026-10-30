@@ -16,6 +16,7 @@ import {
 import type { LogEntry, NavTab, ServiceStatus } from "../types";
 import { api } from "../services/api";
 import { LogConsole, formatLogText } from "../components/LogConsole";
+import { stripAnsi } from "../utils/ansi";
 
 interface HomePageProps {
   status: ServiceStatus | null;
@@ -474,7 +475,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                 服务未能真正启动
               </p>
               <p className="text-xs text-rose-700 dark:text-rose-300/80 mt-1 max-h-48 overflow-y-auto whitespace-pre-wrap break-words">
-                {failureError}
+                {stripAnsi(failureError)}
               </p>
             </div>
           </div>

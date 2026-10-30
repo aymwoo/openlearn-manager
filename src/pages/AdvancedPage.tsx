@@ -18,6 +18,7 @@ import {
 import type { AppConfig, CommandOutputResult } from "../types";
 import type { ThemeMode } from "../hooks/useTheme";
 import { api } from "../services/api";
+import { stripAnsi } from "../utils/ansi";
 
 interface AdvancedPageProps {
   config: AppConfig;
@@ -413,7 +414,7 @@ export const AdvancedPage: React.FC<AdvancedPageProps> = ({
             </button>
           </div>
           <pre className="bg-slate-950 border border-slate-800 rounded-xl p-3.5 font-mono text-xs text-slate-300 max-h-52 overflow-y-auto whitespace-pre-wrap">
-            {commandResult.output || "（无回显内容）"}
+            {commandResult.output ? stripAnsi(commandResult.output) : "（无回显内容）"}
           </pre>
         </div>
       )}

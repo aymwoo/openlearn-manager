@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import type { LogEntry } from "../types";
 import { LogConsole, formatLogText } from "../components/LogConsole";
+import { stripAnsi } from "../utils/ansi";
 
 interface LogsPageProps {
   logs: LogEntry[];
@@ -31,9 +32,10 @@ export const LogsPage: React.FC<LogsPageProps> = ({ logs, onClearLogs }) => {
     }
   };
 
+  // 搜索按「去掉颜色码后的纯文本」匹配，否则搜 "ready" 会被转义序列打断
   const filteredLogs = filterQuery.trim()
     ? logs.filter((l) =>
-        l.message.toLowerCase().includes(filterQuery.toLowerCase())
+        stripAnsi(l.message).toLowerCase().includes(filterQuery.toLowerCase())
       )
     : logs;
 
@@ -50,7 +52,7 @@ export const LogsPage: React.FC<LogsPageProps> = ({ logs, onClearLogs }) => {
               服务运行日志
             </h2>
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              当前运行 stdout/stderr 实时日志流（滚动保留 2000 行）
+              当前运行 stdout/stderr 实时日志流（滚动保留 2000 行，已还原 ANSI 彩色与 Nerd Font 图标）
             </p>
           </div>
         </div>

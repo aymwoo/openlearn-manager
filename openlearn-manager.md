@@ -102,6 +102,14 @@
 - 展示 **当前这一次运行** 的服务日志  
 - 滚动保留约 **2000 行**  
 - 提供 **复制全部**、**清空**  
+- **渲染 ANSI 彩色**：CLI 输出的 `\u001b[1m\u001b[32m` 这类 SGR 序列会被解析成真正的前景色/背景色/
+  粗体/斜体/下划线（含 256 色与 truecolor），而不是把转义码当文本显示。
+  复制与搜索用的是**去掉颜色码后的纯文本**；`\r` 按终端语义覆盖（进度条），`\b` 按退格处理  
+- **图标与 Emoji**：日志区字体栈优先 Nerd Font
+  （JetBrainsMono / CaskaydiaCove / FiraCode / Hack / MesloLGS NF …），
+  再退回 `Symbols Nerd Font` 与系统等宽字体，最后落到
+  Apple Color Emoji / Segoe UI Emoji / Noto Color Emoji。
+  **未安装 Nerd Font 的机器会看到方块（tofu）**，属预期行为，装上字体即可  
 
 ### 3.4 高级
 
