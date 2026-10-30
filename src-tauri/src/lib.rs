@@ -81,7 +81,7 @@ async fn create_backup(app: AppHandle, state: State<'_, AppState>) -> Result<Bac
     let cfg = config::load_config();
     let res = state
         .service_manager
-        .run_cli_command(app.clone(), "backup", Some(filepath_str.clone()), &cfg)
+        .run_cli_command(app.clone(), "backup", Some(filepath_str.clone()), &cfg, false)
         .await?;
 
     if !res.success {
@@ -103,12 +103,13 @@ async fn create_backup(app: AppHandle, state: State<'_, AppState>) -> Result<Bac
 async fn restore_backup(
     app: AppHandle,
     filepath: String,
+    force: bool,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let cfg = config::load_config();
     let res = state
         .service_manager
-        .run_cli_command(app.clone(), "restore", Some(filepath), &cfg)
+        .run_cli_command(app.clone(), "restore", Some(filepath), &cfg, force)
         .await?;
 
     if !res.success {
@@ -135,7 +136,7 @@ async fn run_cli_command(
     let cfg = config::load_config();
     state
         .service_manager
-        .run_cli_command(app, &command_type, extra_arg, &cfg)
+        .run_cli_command(app, &command_type, extra_arg, &cfg, false)
         .await
 }
 

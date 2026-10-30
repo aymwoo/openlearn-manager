@@ -767,6 +767,7 @@ impl ServiceManager {
         command_type: &str,
         extra_arg: Option<String>,
         config: &AppConfig,
+        force: bool,
     ) -> Result<CommandOutputResult, String> {
         let version_tag = config.cli_version.as_deref().unwrap_or("latest");
         let pkg = format!("openlearn-next@{}", version_tag);
@@ -807,6 +808,10 @@ impl ServiceManager {
                 args.push("restore".to_string());
                 if let Some(file) = extra_arg {
                     args.push(file);
+                }
+                // 快照来自更新版本时 CLI 默认拒绝恢复，只有显式 --force 才放行
+                if force {
+                    args.push("--force".to_string());
                 }
             }
             other => return Err(format!("未知命令: {}", other)),

@@ -175,18 +175,18 @@ export const api = {
     return await invoke<BackupInfo>("create_backup");
   },
 
-  restoreBackup: async (filepath: string): Promise<void> => {
+  restoreBackup: async (filepath: string, force = false): Promise<void> => {
     if (!isTauri) {
       mockStatus.is_running = false;
       mockStatus.pid = null;
       mockLogs.push({
         timestamp: new Date().toLocaleTimeString(),
         stream: "system",
-        message: `数据库快照恢复成功: ${filepath}`,
+        message: `数据库快照恢复成功: ${filepath}${force ? "（已放行迁移兼容性拦截）" : ""}`,
       });
       return;
     }
-    return await invoke<void>("restore_backup", { filepath });
+    return await invoke<void>("restore_backup", { filepath, force });
   },
 
   openBackupDirectory: async (): Promise<void> => {

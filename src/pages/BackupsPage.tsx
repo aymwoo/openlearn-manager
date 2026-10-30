@@ -23,6 +23,7 @@ export const BackupsPage: React.FC<BackupsPageProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isBackingUp, setIsBackingUp] = useState(false);
   const [restoreTarget, setRestoreTarget] = useState<BackupInfo | null>(null);
+  const [forceRestore, setForceRestore] = useState<boolean>(false);
   const [isRestoring, setIsRestoring] = useState(false);
   const [restoreSuccessPrompt, setRestoreSuccessPrompt] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -71,7 +72,7 @@ export const BackupsPage: React.FC<BackupsPageProps> = ({
     setErrorMessage(null);
     try {
       // 1. Auto stops service if running (handled in Rust backend as well)
-      await api.restoreBackup(restoreTarget.filepath);
+      await api.restoreBackup(restoreTarget.filepath, forceRestore);
       await onRefreshStatus();
       setRestoreTarget(null);
       setRestoreSuccessPrompt(true);
@@ -112,7 +113,8 @@ export const BackupsPage: React.FC<BackupsPageProps> = ({
             </span>
           </div>
           <p className="text-xs text-slate-400">
-            备份目录固定为本地 Documents/OpenLearn/backups，文件按时间戳自动命名
+            备份目录固定为本地 Documents/OpenLearn/backups，文件按时间戳自动命名。
+            当前为数据库冷备（CLI backup 未启用 --full），仅包含主库，不含 uploads / storage 附件目录
           </p>
         </div>
 
@@ -198,7 +200,10 @@ export const BackupsPage: React.FC<BackupsPageProps> = ({
                 </div>
 
                 <button
-                  onClick={() => setRestoreTarget(b)}
+                  onClick={() => {
+                    setForceRestore(false);
+                    setRestoreTarget(b);
+                  }}
                   className="flex items-center space-x-1.5 text-xs font-medium text-amber-400 hover:text-amber-300 bg-amber-950/40 hover:bg-amber-900/50 px-3 py-1.5 rounded-lg border border-amber-800/40 transition cursor-pointer"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
@@ -234,6 +239,24 @@ export const BackupsPage: React.FC<BackupsPageProps> = ({
               <p>2. 执行底层 CLI restore 操作，将现有数据替换为快照数据；</p>
               <p>3. 恢复成功后，系统将提示您是否立即重启服务。</p>
             </div>
+
+            <label className="flex items-start space-x-2.5 cursor-pointer select-none bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+              <input
+                type="checkbox"
+                checked={forceRestore}
+                onChange={(e) => setForceRestore(e.target.checked)}
+                className="mt-0.5 accent-amber-500 cursor-pointer"
+              />
+              <span className="text-[11px] text-slate-400 leading-relaxed">
+                <span className="text-amber-400 font-medium">
+                  放行迁移兼容性拦截（--force）
+                </span>
+                <br />
+                仅当恢复失败并提示「快照包含当前代码不认识的迁移」时勾选。
+                该快照可能来自更新的 OpenLearn 版本，恢复后再启动可能出现结构与
+                checksum 不匹配。
+              </span>
+            </label>
 
             <div className="flex items-center justify-end space-x-3 pt-2">
               <button

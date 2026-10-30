@@ -71,6 +71,18 @@ export const AdvancedPage: React.FC<AdvancedPageProps> = ({
     cmd: string,
     extraArg?: string
   ) => {
+    // CLI 的 --password 取值会拒绝以 `-` 开头的内容（会被当成未知选项），
+    // 位置参数同样会被判为未知选项，因此这类密码在命令行层面无解，必须提前拦下。
+    if (cmd === "reset-admin" && extraArg && extraArg.trim().startsWith("-")) {
+      setCommandResult({
+        success: false,
+        output:
+          "密码不能以 `-` 开头：CLI 会把它当成未知选项而拒绝执行，请更换一个不以连字符开头的密码。",
+      });
+      setActiveModal(null);
+      return;
+    }
+
     setIsRunningCommand(true);
     setCommandResult(null);
     try {
@@ -177,7 +189,8 @@ export const AdvancedPage: React.FC<AdvancedPageProps> = ({
               className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-3.5 py-2.5 text-slate-100 text-xs font-mono focus:outline-hidden focus:border-blue-500 placeholder-slate-600"
             />
             <p className="text-[11px] text-slate-500">
-              如填写 <code className="text-slate-400">2.1.0</code> 则锁定使用 openlearn-next@2.1.0。
+              如填写 <code className="text-slate-400">0.7.8</code> 则锁定使用 openlearn-next@0.7.8。
+              填写前请先确认该版本在 npm 上存在（填错版本会导致 npx 拉取失败）。
             </p>
           </div>
 
