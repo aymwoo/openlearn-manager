@@ -16,7 +16,7 @@ let mockStatus: ServiceStatus = {
   is_running: false,
   is_starting: false,
   pid: null,
-  port: 3000,
+  port: 9000,
   cli_version: "latest",
   node_detected: true,
   node_path: "/usr/bin/node",
@@ -24,7 +24,7 @@ let mockStatus: ServiceStatus = {
 };
 
 let mockConfig: AppConfig = {
-  port: 3000,
+  port: 9000,
   cli_version: null,
   db_path: null,
   theme: "system",
@@ -39,7 +39,7 @@ let mockLogs: LogEntry[] = [
   {
     timestamp: "19:40:02",
     stream: "system",
-    message: "默认监听地址: 127.0.0.1:3000，等待启动指令...",
+    message: "默认监听地址: 127.0.0.1:9000，等待启动指令...",
   },
 ];
 
@@ -219,7 +219,8 @@ export const api = {
     dbPath?: string | null
   ): Promise<string> => {
     const pkg = cliVersion?.trim() ? `openlearn-next@${cliVersion.trim()}` : "openlearn-next@latest";
-    let cmd = `npx ${pkg} start -p ${port} -H 127.0.0.1`;
+    // openlearn-next 启动服务不带子命令（没有 `start`）
+    let cmd = `npx ${pkg} -p ${port} -H 127.0.0.1`;
     if (dbPath?.trim()) {
       cmd += ` --db-path "${dbPath.trim()}"`;
     }

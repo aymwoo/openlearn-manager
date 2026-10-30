@@ -258,12 +258,14 @@ export const AdvancedPage: React.FC<AdvancedPageProps> = ({
               </div>
               <div>
                 <h4 className="text-xs font-semibold text-slate-200">重置管理员密码</h4>
-                <p className="text-[11px] text-slate-400">支持默认 admin 或自定义密码</p>
+                <p className="text-[11px] text-slate-400">
+                  留空则由 CLI 随机生成（结果见执行输出）
+                </p>
               </div>
             </div>
             <button
               onClick={() => {
-                setAdminPasswordInput("admin");
+                setAdminPasswordInput("");
                 setActiveModal("reset-admin");
               }}
               disabled={isRunningCommand}
@@ -377,13 +379,13 @@ export const AdvancedPage: React.FC<AdvancedPageProps> = ({
 
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-slate-400">
-                新密码设定（留空或默认使用 admin）
+                新密码设定（留空则由 CLI 随机生成，新密码会打印在执行输出里）
               </label>
               <input
                 type="text"
                 value={adminPasswordInput}
                 onChange={(e) => setAdminPasswordInput(e.target.value)}
-                placeholder="默认 admin"
+                placeholder="留空 = 随机生成"
                 className="w-full bg-slate-950/70 border border-slate-800 rounded-xl px-3.5 py-2 text-slate-100 text-xs font-mono focus:outline-hidden focus:border-purple-500"
               />
             </div>

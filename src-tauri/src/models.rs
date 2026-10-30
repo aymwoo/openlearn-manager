@@ -11,7 +11,8 @@ pub struct AppConfig {
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
-            port: 3000,
+            // openlearn-next 服务默认端口是 9000（CLI `-p` 缺省值）
+            port: 9000,
             cli_version: None,
             db_path: None,
             theme: "system".to_string(),

@@ -23,8 +23,10 @@ const START_TIMEOUT: Duration = Duration::from_secs(180);
 const READY_POLL_INTERVAL: Duration = Duration::from_millis(500);
 /// 每多久向日志汇报一次「仍在等待」
 const PROGRESS_REPORT_INTERVAL: Duration = Duration::from_secs(10);
-/// 停止后等待端口释放的时间
-const PORT_RELEASE_TIMEOUT: Duration = Duration::from_secs(5);
+/// 停止后等待端口释放的时间。
+/// openlearn-next 的 cli.mjs 收到 SIGTERM 后会转发给真正监听端口的
+/// node server 子进程，并预留最长 35s 优雅关机缓冲，因此这里不能只等几秒。
+const PORT_RELEASE_TIMEOUT: Duration = Duration::from_secs(15);
 
 pub struct ProcessState {
     pub child: Option<Child>,
@@ -43,7 +45,8 @@ impl ProcessState {
         Self {
             child: None,
             pid: None,
-            port: 3000,
+            // 与 openlearn-next CLI 的默认端口保持一致
+            port: 9000,
             is_running: false,
             is_starting: false,
             cli_version: None,
@@ -362,7 +365,8 @@ impl ServiceManager {
             _ => "openlearn-next@latest".to_string(),
         };
 
-        let mut cmd = format!("npx {} start -p {} -H 127.0.0.1", pkg, port);
+        // 注意：openlearn-next 没有 `start` 子命令，启动服务就是不带子命令直接运行
+        let mut cmd = format!("npx {} -p {} -H 127.0.0.1", pkg, port);
         if let Some(dp) = db_path {
             if !dp.trim().is_empty() {
                 cmd.push_str(&format!(" --db-path \"{}\"", dp.trim()));
@@ -398,9 +402,11 @@ impl ServiceManager {
             None => Command::new("npx"),
         };
 
+        // openlearn-next 的启动入口是「无子命令 + 选项」：
+        // `npx openlearn-next@x -p <port> -H 127.0.0.1`。
+        // 传 `start` 会被 CLI 当成未知位置参数直接报错退出（正是之前的假成功来源）。
         cmd.arg("-y")
             .arg(pkg)
-            .arg("start")
             .arg("-p")
             .arg(port.to_string())
             .arg("-H")
@@ -790,8 +796,8 @@ impl ServiceManager {
             }
             "backup" => {
                 args.push("backup".to_string());
+                // backup 的备份文件路径是位置参数，不是 --output
                 if let Some(out) = extra_arg {
-                    args.push("--output".to_string());
                     args.push(out);
                 }
             }

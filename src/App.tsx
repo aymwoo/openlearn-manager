@@ -33,7 +33,7 @@ export const App: React.FC = () => {
   const [status, setStatus] = useState<ServiceStatus | null>(null);
   const { zoomLevel, zoomIn, zoomOut, resetZoom, toastMessage } = useZoom();
   const [config, setConfig] = useState<AppConfig>({
-    port: 3000,
+    port: 9000,
     cli_version: null,
     db_path: null,
     theme: "system",
@@ -155,6 +155,7 @@ export const App: React.FC = () => {
         {currentTab === "home" && (
           <HomePage
             status={status}
+            logs={logs}
             onRefreshStatus={refreshStatus}
             onNavigateTab={setCurrentTab}
             configuredPort={config.port}

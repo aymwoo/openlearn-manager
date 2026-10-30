@@ -9,12 +9,17 @@ import {
   FileText,
   CheckCircle2,
   XCircle,
+  Terminal as TerminalIcon,
+  Copy,
+  Check,
 } from "lucide-react";
-import type { NavTab, ServiceStatus } from "../types";
+import type { LogEntry, NavTab, ServiceStatus } from "../types";
 import { api } from "../services/api";
+import { LogConsole, formatLogText } from "../components/LogConsole";
 
 interface HomePageProps {
   status: ServiceStatus | null;
+  logs: LogEntry[];
   onRefreshStatus: () => Promise<void>;
   onNavigateTab: (tab: NavTab) => void;
   configuredPort: number;
@@ -25,6 +30,7 @@ interface HomePageProps {
 
 export const HomePage: React.FC<HomePageProps> = ({
   status,
+  logs,
   onRefreshStatus,
   onNavigateTab,
   configuredPort,
@@ -127,6 +133,17 @@ export const HomePage: React.FC<HomePageProps> = ({
   const isRunning = status?.is_running ?? false;
   const isStarting = status?.is_starting || isStartingOrStopping;
   const isNodeMissing = !(status?.node_detected ?? true);
+  const [logCopied, setLogCopied] = useState(false);
+
+  const handleCopyLogs = async () => {
+    try {
+      await navigator.clipboard.writeText(formatLogText(logs));
+      setLogCopied(true);
+      setTimeout(() => setLogCopied(false), 2000);
+    } catch (err) {
+      console.error("复制日志失败", err);
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-y-auto bg-slate-950 p-8 space-y-6">
@@ -147,7 +164,7 @@ export const HomePage: React.FC<HomePageProps> = ({
             </div>
           </div>
           <button
-            onClick={() => api.openBrowser(1420).catch(() => window.open("https://nodejs.org", "_blank"))}
+            onClick={() => window.open("https://nodejs.org", "_blank")}
             className="flex items-center space-x-1.5 text-xs font-medium text-rose-300 bg-rose-900/60 hover:bg-rose-800 px-3 py-1.5 rounded-lg border border-rose-700 transition cursor-pointer"
           >
             <span>前往下载 Node.js</span>
@@ -296,6 +313,63 @@ export const HomePage: React.FC<HomePageProps> = ({
         </div>
       </div>
 
+      {/* 内嵌实时日志：启动/停止过程中的真实输出直接在首页可见 */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-5 shadow-xl space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center space-x-2.5">
+            <div className="p-2 rounded-xl bg-blue-500/10 text-blue-400">
+              <TerminalIcon className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-slate-200">运行日志</h3>
+              <p className="text-[11px] text-slate-500">
+                CLI 实时输出（最近 {Math.min(logs.length, 200)} 条，完整内容见日志页）
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={handleCopyLogs}
+              disabled={logs.length === 0}
+              className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-200 rounded-xl border border-slate-700 transition cursor-pointer"
+            >
+              {logCopied ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="text-emerald-400">已复制</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>复制</span>
+                </>
+              )}
+            </button>
+            <button
+              onClick={() => onNavigateTab("logs")}
+              className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl border border-slate-700 transition cursor-pointer"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>完整日志</span>
+            </button>
+          </div>
+        </div>
+
+        <LogConsole
+          logs={logs}
+          maxRows={200}
+          className="h-52"
+          emptyHint="暂无日志输出，点击「启动服务」后将在此实时显示 CLI 输出"
+          footer={
+            <>
+              <span>共 {logs.length} 条记录</span>
+              <span>自动滚动至最新</span>
+            </>
+          }
+        />
+      </div>
+
       {/* Network & Port Settings Section */}
       <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-5">
         <h3 className="text-sm font-semibold text-slate-200">网络与端口配置</h3>
@@ -323,7 +397,7 @@ export const HomePage: React.FC<HomePageProps> = ({
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-slate-400 flex items-center justify-between">
               <span>本地端口 (-p)</span>
-              <span className="text-[11px] text-slate-500">默认 3000</span>
+              <span className="text-[11px] text-slate-500">默认 9000</span>
             </label>
             <div className="flex space-x-2">
               <input
@@ -333,7 +407,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                 disabled={isRunning || isStarting}
                 value={portInput}
                 onChange={(e) => {
-                  const val = parseInt(e.target.value) || 3000;
+                  const val = parseInt(e.target.value) || 9000;
                   setPortInput(val);
                   setPortCheckResult(null);
                 }}

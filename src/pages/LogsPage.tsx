@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState } from "react";
 import {
   Copy,
   Trash2,
@@ -8,6 +8,7 @@ import {
   Terminal as TerminalIcon,
 } from "lucide-react";
 import type { LogEntry } from "../types";
+import { LogConsole, formatLogText } from "../components/LogConsole";
 
 interface LogsPageProps {
   logs: LogEntry[];
@@ -18,19 +19,9 @@ export const LogsPage: React.FC<LogsPageProps> = ({ logs, onClearLogs }) => {
   const [filterQuery, setFilterQuery] = useState("");
   const [autoScroll, setAutoScroll] = useState(true);
   const [copied, setCopied] = useState(false);
-  const logContainerRef = useRef<HTMLDivElement>(null);
-
-  // Auto scroll to bottom when new logs arrive if autoScroll is enabled
-  useEffect(() => {
-    if (autoScroll && logContainerRef.current) {
-      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
-    }
-  }, [logs, autoScroll]);
 
   const handleCopyAll = async () => {
-    const text = logs
-      .map((l) => `[${l.timestamp}] [${l.stream.toUpperCase()}] ${l.message}`)
-      .join("\n");
+    const text = formatLogText(logs);
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
@@ -121,65 +112,21 @@ export const LogsPage: React.FC<LogsPageProps> = ({ logs, onClearLogs }) => {
       </div>
 
       {/* Terminal Output Area */}
-      <div className="flex-1 bg-slate-950 border border-slate-850 rounded-2xl p-4 shadow-2xl flex flex-col font-mono text-xs overflow-hidden">
-        <div
-          ref={logContainerRef}
-          className="flex-1 overflow-y-auto space-y-1 custom-scrollbar pr-2 select-text"
-        >
-          {filteredLogs.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-slate-600 text-xs select-none">
-              {filterQuery ? "未找到匹配的日志内容" : "暂无实时日志输出"}
-            </div>
-          ) : (
-            filteredLogs.map((entry, idx) => {
-              const isStderr = entry.stream === "stderr";
-              const isSystem = entry.stream === "system";
-
-              return (
-                <div
-                  key={idx}
-                  className="flex items-start space-x-3 leading-relaxed hover:bg-slate-900/40 px-1.5 py-0.5 rounded transition"
-                >
-                  <span className="text-slate-600 shrink-0 select-none">
-                    [{entry.timestamp}]
-                  </span>
-                  <span
-                    className={`shrink-0 select-none text-[10px] font-semibold uppercase px-1 rounded ${
-                      isStderr
-                        ? "bg-rose-950 text-rose-400"
-                        : isSystem
-                        ? "bg-blue-950 text-cyan-400"
-                        : "bg-slate-800 text-slate-400"
-                    }`}
-                  >
-                    {entry.stream}
-                  </span>
-                  <span
-                    className={`break-all whitespace-pre-wrap ${
-                      isStderr
-                        ? "text-rose-300"
-                        : isSystem
-                        ? "text-cyan-300 font-medium"
-                        : "text-slate-300"
-                    }`}
-                  >
-                    {entry.message}
-                  </span>
-                </div>
-              );
-            })
-          )}
-        </div>
-
-        {/* Footer info bar */}
-        <div className="pt-2 mt-2 border-t border-slate-900 flex items-center justify-between text-[11px] text-slate-600">
-          <span>
-            共 {filteredLogs.length} 条记录{" "}
-            {filterQuery && `(已过滤，总计 ${logs.length} 条)`}
-          </span>
-          <span>环形缓冲区最大保留 2000 行</span>
-        </div>
-      </div>
+      <LogConsole
+        logs={filteredLogs}
+        autoScroll={autoScroll}
+        className="flex-1"
+        emptyHint={filterQuery ? "未找到匹配的日志内容" : "暂无实时日志输出"}
+        footer={
+          <>
+            <span>
+              共 {filteredLogs.length} 条记录{" "}
+              {filterQuery && `(已过滤，总计 ${logs.length} 条)`}
+            </span>
+            <span>环形缓冲区最大保留 2000 行</span>
+          </>
+        }
+      />
     </div>
   );
 };
