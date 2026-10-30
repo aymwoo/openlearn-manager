@@ -33,13 +33,27 @@ export const HomePage: React.FC<HomePageProps> = ({
   dbPath,
 }) => {
   const [portInput, setPortInput] = useState<number>(configuredPort);
-  const [isStartingOrStopping, setIsStartingOrStopping] = useState(false);
+  // idle | start | stop —— 用于区分「正在等待服务就绪」和「正在停止」
+  const [opMode, setOpMode] = useState<"idle" | "start" | "stop">("idle");
+  const [startElapsed, setStartElapsed] = useState(0);
   const [portCheckResult, setPortCheckResult] = useState<{
     tested: boolean;
     available: boolean;
     message: string;
   } | null>(null);
   const [failureError, setFailureError] = useState<string | null>(null);
+
+  const isStartingOrStopping = opMode !== "idle";
+
+  // 启动等待计时：后端会一直阻塞到端口真正监听或超时，这里如实反映等待时长
+  useEffect(() => {
+    if (opMode !== "start") {
+      setStartElapsed(0);
+      return;
+    }
+    const timer = window.setInterval(() => setStartElapsed((s) => s + 1), 1000);
+    return () => window.clearInterval(timer);
+  }, [opMode]);
 
   useEffect(() => {
     setPortInput(configuredPort);
@@ -64,7 +78,7 @@ export const HomePage: React.FC<HomePageProps> = ({
 
   const handleStart = async () => {
     setFailureError(null);
-    setIsStartingOrStopping(true);
+    setOpMode("start");
     try {
       // Check port first
       const pRes = await api.checkPort(portInput);
@@ -74,29 +88,31 @@ export const HomePage: React.FC<HomePageProps> = ({
           available: false,
           message: pRes.message,
         });
-        setIsStartingOrStopping(false);
+        setOpMode("idle");
         return;
       }
 
+      // 后端只在「端口真的开始监听」后才 resolve，否则抛错
       await api.startService(portInput, cliVersion, dbPath);
       onUpdatePort(portInput);
       await onRefreshStatus();
     } catch (err: any) {
       setFailureError(typeof err === "string" ? err : err?.message || "启动服务发生未知异常");
+      await onRefreshStatus();
     } finally {
-      setIsStartingOrStopping(false);
+      setOpMode("idle");
     }
   };
 
   const handleStop = async () => {
-    setIsStartingOrStopping(true);
+    setOpMode("stop");
     try {
       await api.stopService();
       await onRefreshStatus();
     } catch (err: any) {
       setFailureError(typeof err === "string" ? err : err?.message || "停止服务失败");
     } finally {
-      setIsStartingOrStopping(false);
+      setOpMode("idle");
     }
   };
 
@@ -209,7 +225,9 @@ export const HomePage: React.FC<HomePageProps> = ({
                 </div>
                 <p className="text-xs text-slate-400 mt-1">
                   {isRunning
-                    ? `服务正在监听 http://127.0.0.1:${status?.port}`
+                    ? `已确认服务正在监听 http://127.0.0.1:${status?.port}`
+                    : opMode === "start"
+                    ? `正在等待端口 ${portInput} 真正开始响应... 已等待 ${startElapsed}s（首次启动需下载 CLI 包，上限 180s）`
                     : "点击右侧按钮启动本地 OpenLearn 服务"}
                 </p>
               </div>
@@ -250,7 +268,11 @@ export const HomePage: React.FC<HomePageProps> = ({
               className="flex-1 min-w-[160px] flex items-center justify-center space-x-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 text-white font-medium text-sm py-3 px-6 rounded-2xl shadow-lg shadow-blue-600/20 transition cursor-pointer"
             >
               <Play className="w-4 h-4 fill-current" />
-              <span>{isStarting ? "正在启动..." : "启动服务"}</span>
+              <span>
+                {opMode === "start"
+                  ? `等待服务就绪... ${startElapsed}s`
+                  : "启动服务"}
+              </span>
             </button>
           ) : (
             <button
@@ -259,7 +281,7 @@ export const HomePage: React.FC<HomePageProps> = ({
               className="flex-1 min-w-[160px] flex items-center justify-center space-x-2 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white font-medium text-sm py-3 px-6 rounded-2xl shadow-lg shadow-rose-600/20 transition cursor-pointer"
             >
               <Square className="w-4 h-4 fill-current" />
-              <span>{isStarting ? "正在停止..." : "停止服务"}</span>
+              <span>{opMode === "stop" ? "正在停止..." : "停止服务"}</span>
             </button>
           )}
 
@@ -360,12 +382,12 @@ export const HomePage: React.FC<HomePageProps> = ({
 
       {/* Start Failure Notice Modal / Box */}
       {failureError && (
-        <div className="bg-rose-950/60 border border-rose-800 rounded-2xl p-4 flex items-center justify-between shadow-xl animate-in fade-in">
-          <div className="flex items-center space-x-3">
-            <XCircle className="w-5 h-5 text-rose-400 shrink-0" />
-            <div>
-              <p className="text-xs font-semibold text-rose-200">启动服务出现错误</p>
-              <p className="text-xs text-rose-300/80 mt-0.5 max-w-xl truncate">
+        <div className="bg-rose-950/60 border border-rose-800 rounded-2xl p-4 flex items-start justify-between gap-4 shadow-xl animate-in fade-in">
+          <div className="flex items-start space-x-3 min-w-0">
+            <XCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-rose-200">服务未能真正启动</p>
+              <p className="text-xs text-rose-300/80 mt-1 max-h-48 overflow-y-auto whitespace-pre-wrap break-words">
                 {failureError}
               </p>
             </div>
