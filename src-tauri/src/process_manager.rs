@@ -150,7 +150,7 @@ fn candidate_node_paths() -> Vec<PathBuf> {
     candidates
 }
 
-/// 在 Node 同目录下找 npx（Windows 上是 npx.cmd）
+/// 在 Node 所在目录或其同级 bin/ 目录下找 npx（Windows 上是 npx.cmd）
 fn resolve_npx(node_path: Option<&str>) -> Option<PathBuf> {
     let dir = PathBuf::from(node_path?).parent()?.to_path_buf();
 
@@ -160,9 +160,15 @@ fn resolve_npx(node_path: Option<&str>) -> Option<PathBuf> {
     let names = ["npx"];
 
     for name in names {
+        // 1. 同目录下找
         let candidate = dir.join(name);
         if candidate.exists() {
             return Some(candidate);
+        }
+        // 2. dir/bin 目录下找（如果 node 在根目录）
+        let candidate_bin = dir.join("bin").join(name);
+        if candidate_bin.exists() {
+            return Some(candidate_bin);
         }
     }
     None
@@ -289,12 +295,20 @@ impl ServiceManager {
         // 1. Check embedded node in packaged Tauri resources
         if let Ok(resource_dir) = app_handle.path().resource_dir() {
             #[cfg(target_os = "windows")]
-            let embedded_node = resource_dir.join("node").join("node.exe");
+            let candidates = [
+                resource_dir.join("node").join("node.exe"),
+                resource_dir.join("node").join("bin").join("node.exe"),
+            ];
             #[cfg(not(target_os = "windows"))]
-            let embedded_node = resource_dir.join("node").join("node");
+            let candidates = [
+                resource_dir.join("node").join("node"),
+                resource_dir.join("node").join("bin").join("node"),
+            ];
 
-            if embedded_node.exists() {
-                return (true, Some(embedded_node.to_string_lossy().to_string()), true);
+            for embedded_node in candidates {
+                if embedded_node.exists() {
+                    return (true, Some(embedded_node.to_string_lossy().to_string()), true);
+                }
             }
         }
 
@@ -305,15 +319,23 @@ impl ServiceManager {
             PathBuf::from("..").join("resources").join("node"),
         ] {
             #[cfg(target_os = "windows")]
-            let embedded_node = candidate_dir.join("node.exe");
+            let dev_candidates = [
+                candidate_dir.join("node.exe"),
+                candidate_dir.join("bin").join("node.exe"),
+            ];
             #[cfg(not(target_os = "windows"))]
-            let embedded_node = candidate_dir.join("node");
+            let dev_candidates = [
+                candidate_dir.join("node"),
+                candidate_dir.join("bin").join("node"),
+            ];
 
-            if embedded_node.exists() {
-                if let Ok(canonical) = embedded_node.canonicalize() {
-                    return (true, Some(canonical.to_string_lossy().to_string()), true);
+            for embedded_node in dev_candidates {
+                if embedded_node.exists() {
+                    if let Ok(canonical) = embedded_node.canonicalize() {
+                        return (true, Some(canonical.to_string_lossy().to_string()), true);
+                    }
+                    return (true, Some(embedded_node.to_string_lossy().to_string()), true);
                 }
-                return (true, Some(embedded_node.to_string_lossy().to_string()), true);
             }
         }
 

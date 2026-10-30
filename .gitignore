@@ -15,6 +15,12 @@ dist-ssr
 # Rust & Tauri
 src-tauri/target/
 src-tauri/gen/
+src-tauri/resources/node/
+!src-tauri/resources/.keep
+
+# Build & Cache
+.cache/
+release-artifacts/
 
 # Editor directories and files
 .vscode/*

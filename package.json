@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "dev:full": "OPENLEARN_FORCE_FULL=1 tauri dev",
+    "prepare:node:full": "node scripts/prepare-node.mjs --edition full",
+    "prepare:node:lite": "node scripts/prepare-node.mjs --edition lite",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri"

@@ -1,0 +1,177 @@
+name: Release Build & Publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      edition:
+        description: 'Choose edition to build'
+        required: true
+        default: 'both'
+        type: choice
+        options:
+          - both
+          - full
+          - lite
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build (${{ matrix.platform }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            platform: win-x64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            platform: darwin-arm64
+          - os: macos-13
+            target: x86_64-apple-darwin
+            platform: darwin-x64
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            platform: linux-x64
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Cache Node.js portable runtime archives
+        uses: actions/cache@v4
+        with:
+          path: .cache/node-dist
+          key: node-runtime-${{ matrix.platform }}-v22.11.0
+          restore-keys: |
+            node-runtime-${{ matrix.platform }}-
+
+      - name: Install Linux system dependencies
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create release staging directory
+        shell: bash
+        run: mkdir -p release-artifacts
+
+      # =========================================================================
+      # 1. BUILD LITE EDITION (No embedded Node, ~15MB)
+      # =========================================================================
+      - name: Prepare Lite Edition
+        if: ${{ github.event_name == 'push' || inputs.edition == 'both' || inputs.edition == 'lite' }}
+        run: pnpm prepare:node:lite
+
+      - name: Build Lite Edition
+        if: ${{ github.event_name == 'push' || inputs.edition == 'both' || inputs.edition == 'lite' }}
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: __temp_lite_build__
+          releaseDraft: false
+          prerelease: false
+          args: --target ${{ matrix.target }}
+
+      - name: Staging Lite artifacts
+        if: ${{ github.event_name == 'push' || inputs.edition == 'both' || inputs.edition == 'lite' }}
+        shell: bash
+        run: |
+          echo "Collecting Lite bundles..."
+          find src-tauri/target/${{ matrix.target }}/release/bundle/ -type f \( -name "*.deb" -o -name "*.AppImage" -o -name "*.msi" -o -name "*.exe" -o -name "*.dmg" \) | while read -r file; do
+            dir=$(dirname "$file")
+            base=$(basename "$file")
+            ext="${base##*.}"
+            name="${base%.*}"
+            newname="${name}-Lite.${ext}"
+            cp "$file" "release-artifacts/${newname}"
+            echo "Staged Lite bundle: release-artifacts/${newname}"
+          done
+
+      # =========================================================================
+      # 2. BUILD FULL EDITION (Embedded Node 22 LTS)
+      # =========================================================================
+      - name: Prepare Full Edition (Download & Extract Node 22 LTS for ${{ matrix.platform }})
+        if: ${{ github.event_name == 'push' || inputs.edition == 'both' || inputs.edition == 'full' }}
+        run: node scripts/prepare-node.mjs --edition full --platform ${{ matrix.platform }}
+
+      - name: Build Full Edition
+        if: ${{ github.event_name == 'push' || inputs.edition == 'both' || inputs.edition == 'full' }}
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: __temp_full_build__
+          releaseDraft: false
+          prerelease: false
+          args: --target ${{ matrix.target }}
+
+      - name: Staging Full artifacts
+        if: ${{ github.event_name == 'push' || inputs.edition == 'both' || inputs.edition == 'full' }}
+        shell: bash
+        run: |
+          echo "Collecting Full bundles..."
+          find src-tauri/target/${{ matrix.target }}/release/bundle/ -type f \( -name "*.deb" -o -name "*.AppImage" -o -name "*.msi" -o -name "*.exe" -o -name "*.dmg" \) | while read -r file; do
+            dir=$(dirname "$file")
+            base=$(basename "$file")
+            ext="${base##*.}"
+            name="${base%.*}"
+            newname="${name}-Full.${ext}"
+            cp "$file" "release-artifacts/${newname}"
+            echo "Staged Full bundle: release-artifacts/${newname}"
+          done
+
+      # =========================================================================
+      # 3. UPLOAD ASSETS TO GITHUB RELEASE
+      # =========================================================================
+      - name: Upload Bundles to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-artifacts/*
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Archive artifacts for manual workflow dispatch
+        if: startsWith(github.ref, 'refs/tags/v') == false
+        uses: actions/upload-artifact@v4
+        with:
+          name: openlearn-manager-${{ matrix.platform }}
+          path: release-artifacts/*
