@@ -3,6 +3,7 @@ import { ZoomIn } from "lucide-react";
 import type { AppConfig, LogEntry, NavTab, ServiceStatus } from "./types";
 import { api } from "./services/api";
 import { useZoom } from "./hooks/useZoom";
+import { useTheme } from "./hooks/useTheme";
 import { Sidebar } from "./components/Sidebar";
 import { ConfirmCloseModal } from "./components/ConfirmCloseModal";
 import { HomePage } from "./pages/HomePage";
@@ -38,6 +39,15 @@ export const App: React.FC = () => {
     db_path: null,
     theme: "system",
   });
+
+  const { theme, resolvedTheme, setTheme, toggleTheme } = useTheme(
+    config.theme,
+    (newTheme) => {
+      const updated = { ...config, theme: newTheme };
+      api.saveConfig(updated).catch(console.error);
+      setConfig(updated);
+    }
+  );
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [showConfirmClose, setShowConfirmClose] = useState(false);
 
@@ -130,7 +140,7 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="flex h-full w-full overflow-hidden bg-slate-950 text-slate-100 antialiased font-sans">
+    <div className="flex h-full w-full overflow-hidden bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 antialiased font-sans transition-colors duration-200">
       {/* Left Sidebar */}
       <Sidebar
         currentTab={currentTab}
@@ -140,6 +150,9 @@ export const App: React.FC = () => {
         onZoomIn={zoomIn}
         onZoomOut={zoomOut}
         onResetZoom={resetZoom}
+        theme={theme}
+        resolvedTheme={resolvedTheme}
+        onToggleTheme={toggleTheme}
       />
 
       {/* Floating Zoom Toast */}
@@ -174,6 +187,8 @@ export const App: React.FC = () => {
             config={config}
             onSaveConfig={handleSaveConfig}
             currentPort={status?.port || config.port}
+            theme={theme}
+            onSetTheme={setTheme}
           />
         )}
         {currentTab === "about" && <AboutPage status={status} />}
