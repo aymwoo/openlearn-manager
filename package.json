@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:full": "OPENLEARN_FORCE_FULL=1 tauri dev",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri"

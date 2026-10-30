@@ -278,7 +278,15 @@ impl ServiceManager {
 
     /// Detect Node.js environment
     pub async fn detect_node(&self, app_handle: &AppHandle) -> (bool, Option<String>, bool) {
-        // 1. Check embedded node in resources
+        // 0. Check explicit custom embedded node path via env var (for development / testing)
+        if let Ok(custom_embedded) = std::env::var("OPENLEARN_EMBEDDED_NODE") {
+            let p = PathBuf::from(custom_embedded.trim());
+            if p.exists() {
+                return (true, Some(p.to_string_lossy().to_string()), true);
+            }
+        }
+
+        // 1. Check embedded node in packaged Tauri resources
         if let Ok(resource_dir) = app_handle.path().resource_dir() {
             #[cfg(target_os = "windows")]
             let embedded_node = resource_dir.join("node").join("node.exe");
@@ -290,7 +298,31 @@ impl ServiceManager {
             }
         }
 
-        // 2. Check system node
+        // 2. Check dev-mode relative paths (src-tauri/resources/node or resources/node)
+        for candidate_dir in [
+            PathBuf::from("resources").join("node"),
+            PathBuf::from("src-tauri").join("resources").join("node"),
+            PathBuf::from("..").join("resources").join("node"),
+        ] {
+            #[cfg(target_os = "windows")]
+            let embedded_node = candidate_dir.join("node.exe");
+            #[cfg(not(target_os = "windows"))]
+            let embedded_node = candidate_dir.join("node");
+
+            if embedded_node.exists() {
+                if let Ok(canonical) = embedded_node.canonicalize() {
+                    return (true, Some(canonical.to_string_lossy().to_string()), true);
+                }
+                return (true, Some(embedded_node.to_string_lossy().to_string()), true);
+            }
+        }
+
+        // Check simulation flag for Full edition
+        let force_full = std::env::var("OPENLEARN_FORCE_FULL")
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(false);
+
+        // 3. Check system node
         #[cfg(target_os = "windows")]
         let check_cmd = "where node";
         #[cfg(not(target_os = "windows"))]
@@ -306,15 +338,26 @@ impl ServiceManager {
                     .trim()
                     .to_string();
                 if !path.is_empty() {
-                    return (true, Some(path), false);
+                    let display_path = if force_full {
+                        format!("{} (仿真 Full 模式)", path)
+                    } else {
+                        path
+                    };
+                    return (true, Some(display_path), force_full);
                 }
             }
         }
 
-        // 3. 常见安装位置兜底：GUI 从桌面启动器拉起时 PATH 常被精简
+        // 4. 常见安装位置兜底：GUI 从桌面启动器拉起时 PATH 常被精简
         for candidate in candidate_node_paths() {
             if candidate.exists() {
-                return (true, Some(candidate.to_string_lossy().to_string()), false);
+                let p_str = candidate.to_string_lossy().to_string();
+                let display_path = if force_full {
+                    format!("{} (仿真 Full 模式)", p_str)
+                } else {
+                    p_str
+                };
+                return (true, Some(display_path), force_full);
             }
         }
 

@@ -11,6 +11,10 @@ import type {
 
 const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
+// Check URL query parameters for browser-based testing (?edition=full or ?full=true)
+const urlParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+const forceFullBrowser = urlParams?.get("edition") === "full" || urlParams?.get("full") === "true";
+
 // Fallback in-memory state for browser preview & web testing
 let mockStatus: ServiceStatus = {
   is_running: false,
@@ -19,8 +23,8 @@ let mockStatus: ServiceStatus = {
   port: 9000,
   cli_version: "latest",
   node_detected: true,
-  node_path: "/usr/bin/node",
-  is_full_edition: false,
+  node_path: forceFullBrowser ? "resources/node/node (内嵌 Node 22 LTS)" : "/usr/bin/node",
+  is_full_edition: forceFullBrowser,
 };
 
 let mockConfig: AppConfig = {
@@ -35,7 +39,9 @@ let mockLogs: LogEntry[] = [
     id: 0,
     timestamp: "19:40:02",
     stream: "system",
-    message: "OpenLearn 管理器就绪，已检测到系统 Node 运行时环境 (/usr/bin/node)",
+    message: forceFullBrowser
+      ? "OpenLearn 管理器就绪，已加载 Full 安装版内嵌 Node 22 运行时 (resources/node/node)"
+      : "OpenLearn 管理器就绪，已检测到系统 Node 运行时环境 (/usr/bin/node)",
   },
   {
     id: 1,
