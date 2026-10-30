@@ -102,17 +102,19 @@ export const BackupsPage: React.FC<BackupsPageProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full overflow-y-auto bg-slate-950 p-8 space-y-6">
+    <div className="flex-1 flex flex-col h-full overflow-y-auto bg-slate-100/70 dark:bg-slate-950 p-8 space-y-6 transition-colors duration-200">
       {/* Header bar */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-xl flex items-center justify-between">
+      <div className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm dark:shadow-xl flex items-center justify-between transition-colors duration-200">
         <div className="space-y-1">
           <div className="flex items-center space-x-2.5">
-            <h2 className="text-lg font-semibold text-slate-100">数据库备份与恢复</h2>
-            <span className="text-xs bg-slate-800 text-slate-300 px-2 py-0.5 rounded font-mono">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+              数据库备份与恢复
+            </h2>
+            <span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded font-mono">
               {backups.length} 个快照
             </span>
           </div>
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
             备份目录固定为本地 Documents/OpenLearn/backups，文件按时间戳自动命名。
             当前为数据库冷备（CLI backup 未启用 --full），仅包含主库，不含 uploads / storage 附件目录
           </p>
@@ -121,9 +123,9 @@ export const BackupsPage: React.FC<BackupsPageProps> = ({
         <div className="flex items-center space-x-3">
           <button
             onClick={handleOpenFolder}
-            className="flex items-center space-x-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 px-3.5 py-2.5 rounded-xl border border-slate-700 transition cursor-pointer"
+            className="flex items-center space-x-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 transition cursor-pointer"
           >
-            <FolderOpen className="w-4 h-4 text-blue-400" />
+            <FolderOpen className="w-4 h-4 text-blue-600 dark:text-blue-400" />
             <span>打开所在文件夹</span>
           </button>
 
@@ -144,54 +146,56 @@ export const BackupsPage: React.FC<BackupsPageProps> = ({
 
       {/* Error alert */}
       {errorMessage && (
-        <div className="bg-rose-950/60 border border-rose-800 rounded-2xl p-4 text-xs text-rose-300 flex items-center space-x-3 animate-in fade-in">
-          <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+        <div className="bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 rounded-2xl p-4 text-xs text-rose-700 dark:text-rose-300 flex items-center space-x-3 animate-in fade-in">
+          <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
           <span>{errorMessage}</span>
         </div>
       )}
 
       {/* Backup list container */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-xl flex-1 flex flex-col">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-800/80">
-          <div className="flex items-center space-x-2 text-xs font-medium text-slate-300">
-            <HardDrive className="w-4 h-4 text-slate-400" />
+      <div className="bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm dark:shadow-xl flex-1 flex flex-col transition-colors duration-200">
+        <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800/80">
+          <div className="flex items-center space-x-2 text-xs font-medium text-slate-700 dark:text-slate-300">
+            <HardDrive className="w-4 h-4 text-slate-500 dark:text-slate-400" />
             <span>备份快照列表</span>
           </div>
           <button
             onClick={loadBackups}
             disabled={isLoading}
-            className="p-1.5 text-slate-400 hover:text-slate-200 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+            className="p-1.5 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? "animate-spin" : ""}`} />
           </button>
         </div>
 
         {backups.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center py-16 text-center space-y-3 text-slate-500">
-            <Archive className="w-10 h-10 stroke-[1.5] text-slate-600" />
+          <div className="flex-1 flex flex-col items-center justify-center py-16 text-center space-y-3 text-slate-400 dark:text-slate-500">
+            <Archive className="w-10 h-10 stroke-[1.5] text-slate-400 dark:text-slate-600" />
             <div className="space-y-1">
-              <p className="text-sm font-medium text-slate-400">暂无备份文件</p>
+              <p className="text-sm font-medium text-slate-600 dark:text-slate-400">
+                暂无备份文件
+              </p>
               <p className="text-xs text-slate-500">
                 点击右上角“新建备份”按钮，创建首个数据库安全快照
               </p>
             </div>
           </div>
         ) : (
-          <div className="divide-y divide-slate-800/60 overflow-y-auto">
+          <div className="divide-y divide-slate-100 dark:divide-slate-800/60 overflow-y-auto">
             {backups.map((b) => (
               <div
                 key={b.filename}
-                className="py-3.5 flex items-center justify-between hover:bg-slate-800/30 px-3 rounded-xl transition"
+                className="py-3.5 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/30 px-3 rounded-xl transition"
               >
                 <div className="flex items-center space-x-3.5">
-                  <div className="w-9 h-9 rounded-xl bg-blue-950/60 border border-blue-800/40 flex items-center justify-center text-blue-400 shrink-0">
+                  <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/40 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
                     <Archive className="w-4 h-4" />
                   </div>
                   <div>
-                    <p className="text-xs font-medium font-mono text-slate-200">
+                    <p className="text-xs font-medium font-mono text-slate-800 dark:text-slate-200">
                       {b.filename}
                     </p>
-                    <div className="flex items-center space-x-3 text-[11px] text-slate-400 mt-0.5">
+                    <div className="flex items-center space-x-3 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                       <span>{b.created_at}</span>
                       <span>•</span>
                       <span>{formatSize(b.size_bytes)}</span>
@@ -204,7 +208,7 @@ export const BackupsPage: React.FC<BackupsPageProps> = ({
                     setForceRestore(false);
                     setRestoreTarget(b);
                   }}
-                  className="flex items-center space-x-1.5 text-xs font-medium text-amber-400 hover:text-amber-300 bg-amber-950/40 hover:bg-amber-900/50 px-3 py-1.5 rounded-lg border border-amber-800/40 transition cursor-pointer"
+                  className="flex items-center space-x-1.5 text-xs font-medium text-amber-700 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-300 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 px-3 py-1.5 rounded-lg border border-amber-200 dark:border-amber-800/40 transition cursor-pointer"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
                   <span>恢复此备份</span>
@@ -217,38 +221,38 @@ export const BackupsPage: React.FC<BackupsPageProps> = ({
 
       {/* Restore Confirmation Dialog */}
       {restoreTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 dark:bg-black/70 backdrop-blur-xs p-4 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-start space-x-3.5">
-              <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-400 shrink-0">
+              <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0">
                 <AlertTriangle className="w-6 h-6" />
               </div>
               <div className="space-y-1">
-                <h3 className="text-base font-semibold text-slate-100">
+                <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
                   确认恢复数据库快照？
                 </h3>
-                <p className="text-xs text-slate-300 leading-relaxed font-mono">
+                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-mono">
                   目标文件: {restoreTarget.filename}
                 </p>
               </div>
             </div>
 
-            <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 text-xs text-slate-400 space-y-1.5">
-              <p className="font-semibold text-slate-300">恢复执行规则：</p>
-              <p>1. 若当前本地服务正在运行，系统将首先<span className="text-amber-400">自动安全停止服务</span>；</p>
+            <div className="bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 rounded-xl p-3.5 text-xs text-slate-600 dark:text-slate-400 space-y-1.5">
+              <p className="font-semibold text-slate-800 dark:text-slate-300">恢复执行规则：</p>
+              <p>1. 若当前本地服务正在运行，系统将首先<span className="text-amber-600 dark:text-amber-400">自动安全停止服务</span>；</p>
               <p>2. 执行底层 CLI restore 操作，将现有数据替换为快照数据；</p>
               <p>3. 恢复成功后，系统将提示您是否立即重启服务。</p>
             </div>
 
-            <label className="flex items-start space-x-2.5 cursor-pointer select-none bg-slate-950/60 border border-slate-800 rounded-xl p-3">
+            <label className="flex items-start space-x-2.5 cursor-pointer select-none bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-xl p-3">
               <input
                 type="checkbox"
                 checked={forceRestore}
                 onChange={(e) => setForceRestore(e.target.checked)}
                 className="mt-0.5 accent-amber-500 cursor-pointer"
               />
-              <span className="text-[11px] text-slate-400 leading-relaxed">
-                <span className="text-amber-400 font-medium">
+              <span className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                <span className="text-amber-700 dark:text-amber-400 font-medium">
                   放行迁移兼容性拦截（--force）
                 </span>
                 <br />
@@ -262,7 +266,7 @@ export const BackupsPage: React.FC<BackupsPageProps> = ({
               <button
                 onClick={() => setRestoreTarget(null)}
                 disabled={isRestoring}
-                className="px-4 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800 rounded-xl transition cursor-pointer"
+                className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
               >
                 取消
               </button>
@@ -281,17 +285,17 @@ export const BackupsPage: React.FC<BackupsPageProps> = ({
 
       {/* Restore Success -> Ask to Restart Dialog */}
       {restoreSuccessPrompt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 dark:bg-black/70 backdrop-blur-xs p-4 animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-start space-x-3.5">
-              <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 shrink-0">
+              <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
                 <CheckCircle2 className="w-6 h-6" />
               </div>
               <div className="space-y-1">
-                <h3 className="text-base font-semibold text-slate-100">
+                <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">
                   数据库快照已成功恢复
                 </h3>
-                <p className="text-xs text-slate-300 leading-relaxed">
+                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
                   数据恢复操作已完成。由于数据已更新，是否立即重新拉起本地 OpenLearn 服务？
                 </p>
               </div>
@@ -300,7 +304,7 @@ export const BackupsPage: React.FC<BackupsPageProps> = ({
             <div className="flex items-center justify-end space-x-3 pt-2">
               <button
                 onClick={() => setRestoreSuccessPrompt(false)}
-                className="px-4 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800 rounded-xl transition cursor-pointer"
+                className="px-4 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition cursor-pointer"
               >
                 暂不启动
               </button>

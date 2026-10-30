@@ -38,7 +38,7 @@ export const LogConsole: React.FC<LogConsoleProps> = ({
 
   return (
     <div
-      className={`flex flex-col bg-slate-950 border border-slate-850 rounded-2xl p-4 shadow-2xl font-mono text-xs overflow-hidden ${className}`}
+      className={`flex flex-col bg-slate-950 border border-slate-800/90 rounded-2xl p-4 shadow-xl font-mono text-xs overflow-hidden ${className}`}
     >
       <div
         ref={containerRef}
