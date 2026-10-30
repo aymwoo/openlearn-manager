@@ -92,7 +92,7 @@ export const LogConsole: React.FC<LogConsoleProps> = ({
 
             return (
               <div
-                key={idx}
+                key={typeof entry.id === "number" ? entry.id : `idx-${idx}`}
                 className="flex items-start space-x-3 leading-relaxed hover:bg-slate-900/40 px-1.5 py-0.5 rounded transition"
               >
                 <span className="text-slate-600 shrink-0 select-none">

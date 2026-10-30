@@ -18,6 +18,8 @@ export interface PortCheckResult {
 }
 
 export interface LogEntry {
+  /** 后端单调递增序号，前端按它去重，避免同一条日志渲染两次 */
+  id: number;
   timestamp: string;
   stream: "stdout" | "stderr" | "system";
   message: string;

@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { ZoomIn } from "lucide-react";
+import type { UnlistenFn } from "@tauri-apps/api/event";
 import type { AppConfig, LogEntry, NavTab, ServiceStatus } from "./types";
 import { api } from "./services/api";
 import { useZoom } from "./hooks/useZoom";
@@ -50,6 +51,25 @@ export const App: React.FC = () => {
   );
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [showConfirmClose, setShowConfirmClose] = useState(false);
+  // 已渲染过的最大日志 id。后端序号单调递增，重复投递的同 id 条目直接丢弃
+  const lastLogIdRef = useRef(-1);
+
+  /** 追加日志：按 id 去重后并入，并维持 2000 行上限 */
+  const appendLogs = useCallback((incoming: LogEntry[]) => {
+    if (incoming.length === 0) return;
+    const fresh = incoming.filter((e) => {
+      const id = typeof e.id === "number" ? e.id : -1;
+      if (id < 0) return true; // 老数据没有 id，无法去重，直接放行
+      if (id <= lastLogIdRef.current) return false;
+      lastLogIdRef.current = id;
+      return true;
+    });
+    if (fresh.length === 0) return;
+    setLogs((prev) => {
+      const next = [...prev, ...fresh];
+      return next.length > 2000 ? next.slice(next.length - 2000) : next;
+    });
+  }, []);
 
   // Refresh status from Tauri backend
   const refreshStatus = useCallback(async () => {
@@ -74,44 +94,43 @@ export const App: React.FC = () => {
     // 2. Load status
     refreshStatus();
 
-    // 3. Load initial logs
+    // 3. Load initial logs（用同一条去重通道，避免与实时事件重叠时重复渲染）
     api
       .getLogs()
-      .then(setLogs)
+      .then((initial) => {
+        lastLogIdRef.current = -1;
+        setLogs([]);
+        appendLogs(initial);
+      })
       .catch((err) => console.error("获取日志失败", err));
 
     // 4. Setup Event Listeners
-    let unlistenLog: (() => void) | undefined;
-    let unlistenStatus: (() => void) | undefined;
-    let unlistenClose: (() => void) | undefined;
+    // 注意：listen() 是异步的，而 StrictMode（以及 HMR）会在 promise 落地之前
+    // 就先跑 cleanup。若 cleanup 只调用「已保存的 unlisten」，第一次注册的监听
+    // 就会泄漏，导致每条日志被两个 handler 各追加一次 —— 也就是看到两遍。
+    let disposed = false;
+    const teardowns: UnlistenFn[] = [];
+    const register = (p: Promise<UnlistenFn>) => {
+      p.then((un) => {
+        if (disposed) {
+          // 已卸载：立刻撤销这次迟到的注册
+          un();
+          return;
+        }
+        teardowns.push(un);
+      }).catch((err) => console.error("注册事件监听失败", err));
+    };
 
-    api.onLogLine((entry) => {
-      setLogs((prev) => {
-        const next = [...prev, entry];
-        return next.length > 2000 ? next.slice(next.length - 2000) : next;
-      });
-    }).then((un) => {
-      unlistenLog = un;
-    });
-
-    api.onServiceStatusChanged(() => {
-      refreshStatus();
-    }).then((un) => {
-      unlistenStatus = un;
-    });
-
-    api.onConfirmClose(() => {
-      setShowConfirmClose(true);
-    }).then((un) => {
-      unlistenClose = un;
-    });
+    register(api.onLogLine((entry) => appendLogs([entry])));
+    register(api.onServiceStatusChanged(() => refreshStatus()));
+    register(api.onConfirmClose(() => setShowConfirmClose(true)));
 
     return () => {
-      unlistenLog?.();
-      unlistenStatus?.();
-      unlistenClose?.();
+      disposed = true;
+      teardowns.forEach((un) => un());
+      teardowns.length = 0;
     };
-  }, [refreshStatus]);
+  }, [refreshStatus, appendLogs]);
 
   const handleSaveConfig = async (newCfg: AppConfig) => {
     await api.saveConfig(newCfg);
@@ -125,8 +144,10 @@ export const App: React.FC = () => {
   };
 
   const handleClearLogs = async () => {
-    await api.clearLogs();
+    // 先清本地再让后端清：后端清空后会推送一条「日志已被清空。」，
+    // 若等它回来再置空，这条提示会被一起抹掉
     setLogs([]);
+    await api.clearLogs();
   };
 
   const handleStopAndExit = async () => {

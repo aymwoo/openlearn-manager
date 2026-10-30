@@ -41,6 +41,9 @@ pub struct PortCheckResult {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LogEntry {
+    /// 进程内单调递增的序号。前端靠它去重：同一条日志被重复投递时只渲染一次。
+    /// 序号不随「清空日志」归零，保证跨清空仍然严格递增。
+    pub id: u64,
     pub timestamp: String,
     pub stream: String, // "stdout" | "stderr" | "system"
     pub message: String,

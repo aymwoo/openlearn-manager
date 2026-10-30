@@ -36,6 +36,8 @@ pub struct ProcessState {
     pub is_starting: bool,
     pub cli_version: Option<String>,
     pub logs: VecDeque<LogEntry>,
+    /// 日志序号发号器，只增不减（清空日志也不归零）
+    pub next_log_id: u64,
     /// 当前这次启动过程中的原始输出，启动失败时用于拼错误信息
     pub recent_output: VecDeque<String>,
 }
@@ -51,12 +53,16 @@ impl ProcessState {
             is_starting: false,
             cli_version: None,
             logs: VecDeque::with_capacity(MAX_LOG_LINES),
+            next_log_id: 0,
             recent_output: VecDeque::with_capacity(MAX_RECENT_OUTPUT),
         }
     }
 
     pub fn append_log(&mut self, stream: &str, message: &str) -> LogEntry {
+        let id = self.next_log_id;
+        self.next_log_id = self.next_log_id.wrapping_add(1);
         let entry = LogEntry {
+            id,
             timestamp: Local::now().format("%H:%M:%S").to_string(),
             stream: stream.to_string(),
             message: message.to_string(),

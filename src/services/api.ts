@@ -32,16 +32,28 @@ let mockConfig: AppConfig = {
 
 let mockLogs: LogEntry[] = [
   {
+    id: 0,
     timestamp: "19:40:02",
     stream: "system",
     message: "OpenLearn 管理器就绪，已检测到系统 Node 运行时环境 (/usr/bin/node)",
   },
   {
+    id: 1,
     timestamp: "19:40:02",
     stream: "system",
     message: "默认监听地址: 127.0.0.1:9000，等待启动指令...",
   },
 ];
+
+let mockNextLogId = mockLogs.length;
+const pushMockLog = (stream: LogEntry["stream"], message: string) => {
+  mockLogs.push({
+    id: mockNextLogId++,
+    timestamp: new Date().toLocaleTimeString(),
+    stream,
+    message,
+  });
+};
 
 let mockBackups: BackupInfo[] = [
   {
@@ -95,11 +107,10 @@ export const api = {
       mockStatus.port = port;
       mockStatus.pid = 48921;
       mockStatus.cli_version = cliVersion || "latest";
-      mockLogs.push({
-        timestamp: new Date().toLocaleTimeString(),
-        stream: "system",
-        message: `服务已在端口 ${port} 启动 [PID: 48921]，访问地址: http://127.0.0.1:${port}`,
-      });
+      pushMockLog(
+        "system",
+        `服务已在端口 ${port} 启动 [PID: 48921]，访问地址: http://127.0.0.1:${port}`
+      );
       return;
     }
     return await invoke<void>("start_service", {
@@ -114,11 +125,7 @@ export const api = {
       mockStatus.is_running = false;
       mockStatus.is_starting = false;
       mockStatus.pid = null;
-      mockLogs.push({
-        timestamp: new Date().toLocaleTimeString(),
-        stream: "system",
-        message: "本地服务已完全停止。",
-      });
+      pushMockLog("system", "本地服务已完全停止。");
       return;
     }
     return await invoke<void>("stop_service");
@@ -179,11 +186,10 @@ export const api = {
     if (!isTauri) {
       mockStatus.is_running = false;
       mockStatus.pid = null;
-      mockLogs.push({
-        timestamp: new Date().toLocaleTimeString(),
-        stream: "system",
-        message: `数据库快照恢复成功: ${filepath}${force ? "（已放行迁移兼容性拦截）" : ""}`,
-      });
+      pushMockLog(
+        "system",
+        `数据库快照恢复成功: ${filepath}${force ? "（已放行迁移兼容性拦截）" : ""}`
+      );
       return;
     }
     return await invoke<void>("restore_backup", { filepath, force });
