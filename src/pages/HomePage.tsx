@@ -113,7 +113,7 @@ export const HomePage: React.FC<HomePageProps> = ({
   const isNodeMissing = !(status?.node_detected ?? true);
 
   return (
-    <div className="flex-1 flex flex-col h-screen overflow-y-auto bg-slate-950 p-8 space-y-6">
+    <div className="flex-1 flex flex-col h-full overflow-y-auto bg-slate-950 p-8 space-y-6">
       {/* Top Red Banner for Missing Node (Lite Mode) */}
       {isNodeMissing && (
         <div className="bg-rose-950/80 border border-rose-800/80 rounded-2xl p-4 flex items-center justify-between shadow-lg shadow-rose-950/40 animate-in fade-in">

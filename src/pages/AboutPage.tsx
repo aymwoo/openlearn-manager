@@ -36,7 +36,7 @@ export const AboutPage: React.FC<AboutPageProps> = ({ status }) => {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-screen overflow-y-auto bg-slate-950 p-8 space-y-6">
+    <div className="flex-1 flex flex-col h-full overflow-y-auto bg-slate-950 p-8 space-y-6">
       {/* Brand & Introduction Card */}
       <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-8 shadow-xl flex flex-col items-center text-center space-y-4">
         <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center text-white shadow-xl shadow-blue-500/25">

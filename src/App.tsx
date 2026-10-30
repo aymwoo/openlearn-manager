@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { ZoomIn } from "lucide-react";
 import type { AppConfig, LogEntry, NavTab, ServiceStatus } from "./types";
 import { api } from "./services/api";
+import { useZoom } from "./hooks/useZoom";
 import { Sidebar } from "./components/Sidebar";
 import { ConfirmCloseModal } from "./components/ConfirmCloseModal";
 import { HomePage } from "./pages/HomePage";
@@ -29,6 +31,7 @@ export const App: React.FC = () => {
     }
   };
   const [status, setStatus] = useState<ServiceStatus | null>(null);
+  const { zoomLevel, zoomIn, zoomOut, resetZoom, toastMessage } = useZoom();
   const [config, setConfig] = useState<AppConfig>({
     port: 3000,
     cli_version: null,
@@ -127,13 +130,25 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-slate-950 text-slate-100 antialiased font-sans">
+    <div className="flex h-full w-full overflow-hidden bg-slate-950 text-slate-100 antialiased font-sans">
       {/* Left Sidebar */}
       <Sidebar
         currentTab={currentTab}
         onTabChange={setCurrentTab}
         status={status}
+        zoomLevel={zoomLevel}
+        onZoomIn={zoomIn}
+        onZoomOut={zoomOut}
+        onResetZoom={resetZoom}
       />
+
+      {/* Floating Zoom Toast */}
+      {toastMessage && (
+        <div className="fixed top-5 right-6 z-50 bg-slate-900/95 border border-blue-500/50 text-blue-300 font-medium text-xs px-3.5 py-2 rounded-xl shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 pointer-events-none flex items-center space-x-2">
+          <ZoomIn className="w-3.5 h-3.5 text-blue-400" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <main className="flex-1 flex overflow-hidden">

@@ -101,7 +101,7 @@ export const BackupsPage: React.FC<BackupsPageProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col h-screen overflow-y-auto bg-slate-950 p-8 space-y-6">
+    <div className="flex-1 flex flex-col h-full overflow-y-auto bg-slate-950 p-8 space-y-6">
       {/* Header bar */}
       <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 shadow-xl flex items-center justify-between">
         <div className="space-y-1">

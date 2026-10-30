@@ -47,7 +47,7 @@ export const LogsPage: React.FC<LogsPageProps> = ({ logs, onClearLogs }) => {
     : logs;
 
   return (
-    <div className="flex-1 flex flex-col h-screen bg-slate-950 p-6 space-y-4">
+    <div className="flex-1 flex flex-col h-full bg-slate-950 p-6 space-y-4">
       {/* Top Controls Bar */}
       <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center space-x-3">

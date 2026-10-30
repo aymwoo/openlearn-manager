@@ -7,6 +7,9 @@ import {
   Info,
   Server,
   AlertCircle,
+  ZoomIn,
+  Plus,
+  Minus,
 } from "lucide-react";
 import type { NavTab, ServiceStatus } from "../types";
 
@@ -14,12 +17,20 @@ interface SidebarProps {
   currentTab: NavTab;
   onTabChange: (tab: NavTab) => void;
   status: ServiceStatus | null;
+  zoomLevel: number;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onResetZoom: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   currentTab,
   onTabChange,
   status,
+  zoomLevel,
+  onZoomIn,
+  onZoomOut,
+  onResetZoom,
 }) => {
   const navItems: { id: NavTab; label: string; icon: React.ReactNode }[] = [
     { id: "home", label: "首页", icon: <Home className="w-4 h-4" /> },
@@ -30,7 +41,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   return (
-    <aside className="w-56 bg-slate-900 border-r border-slate-800 flex flex-col justify-between select-none shrink-0 h-screen">
+    <aside className="w-56 bg-slate-900 border-r border-slate-800 flex flex-col justify-between select-none shrink-0 h-full">
       {/* Brand Header */}
       <div>
         <div className="p-4 border-b border-slate-800/80 flex items-center space-x-3">
@@ -101,6 +112,37 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span className="text-xs text-slate-400 font-medium">未运行</span>
               </>
             )}
+          </div>
+
+          {/* Zoom controls */}
+          <div className="mt-3 pt-2.5 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
+            <span className="flex items-center space-x-1">
+              <ZoomIn className="w-3 h-3 text-slate-400" />
+              <span>缩放</span>
+            </span>
+            <div className="flex items-center space-x-1 bg-slate-900 border border-slate-800 px-1 py-0.5 rounded-lg">
+              <button
+                onClick={onZoomOut}
+                title="缩小 (Ctrl + -)"
+                className="p-1 hover:text-slate-100 hover:bg-slate-800 rounded transition cursor-pointer"
+              >
+                <Minus className="w-2.5 h-2.5" />
+              </button>
+              <button
+                onClick={onResetZoom}
+                title="重置缩放 (Ctrl + 0)"
+                className="font-mono text-[10px] px-1 hover:text-blue-400 transition cursor-pointer font-medium"
+              >
+                {Math.round(zoomLevel * 100)}%
+              </button>
+              <button
+                onClick={onZoomIn}
+                title="放大 (Ctrl + +)"
+                className="p-1 hover:text-slate-100 hover:bg-slate-800 rounded transition cursor-pointer"
+              >
+                <Plus className="w-2.5 h-2.5" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
