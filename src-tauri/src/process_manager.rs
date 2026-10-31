@@ -28,6 +28,32 @@ const PROGRESS_REPORT_INTERVAL: Duration = Duration::from_secs(10);
 /// node server 子进程，并预留最长 35s 优雅关机缓冲，因此这里不能只等几秒。
 const PORT_RELEASE_TIMEOUT: Duration = Duration::from_secs(15);
 
+/// Windows：让子进程不要弹出黑色终端窗口。
+///
+/// 正常情况下本进程已持有一个隐藏控制台（见 `win_console` 模块），子进程直接继承它，
+/// 连孙进程都不会再新建窗口，因此**不需要**任何创建标志；
+/// 只有在隐藏控制台没拿到时才退化为 `CREATE_NO_WINDOW`，至少挡住直接子进程。
+#[cfg(target_os = "windows")]
+fn suppress_console_window(cmd: &mut Command) {
+    if crate::win_console::console_ready() {
+        return;
+    }
+    cmd.creation_flags(crate::win_console::CREATE_NO_WINDOW);
+}
+
+/// 同上，但作用于同步的 `std::process::Command`（`tasklist` 这类探测命令）。
+// `process_alive()` 目前只在 Unix 分支被调用，Windows 下连带本函数也判为未使用；
+// 保留它是为了 Windows 侧 `tasklist` 探测一旦启用就不再弹窗。
+#[cfg(target_os = "windows")]
+#[allow(dead_code)]
+fn suppress_console_window_sync(cmd: &mut std::process::Command) {
+    if crate::win_console::console_ready() {
+        return;
+    }
+    use std::os::windows::process::CommandExt;
+    cmd.creation_flags(crate::win_console::CREATE_NO_WINDOW);
+}
+
 pub struct ProcessState {
     pub child: Option<Child>,
     pub pid: Option<u32>,
@@ -219,9 +245,10 @@ async fn wait_port_release(port: u16) -> bool {
 fn process_alive(pid: u32) -> bool {
     #[cfg(target_os = "windows")]
     {
-        std::process::Command::new("tasklist")
-            .args(["/FI", &format!("PID eq {}", pid)])
-            .output()
+        let mut cmd = std::process::Command::new("tasklist");
+        cmd.args(["/FI", &format!("PID eq {}", pid)]);
+        suppress_console_window_sync(&mut cmd);
+        cmd.output()
             .map(|o| {
                 let out = String::from_utf8_lossy(&o.stdout).to_string();
                 out.contains(&pid.to_string())
@@ -243,10 +270,10 @@ fn process_alive(pid: u32) -> bool {
 async fn kill_process_tree(pid: u32) {
     #[cfg(target_os = "windows")]
     {
-        let _ = Command::new("taskkill")
-            .args(["/F", "/T", "/PID", &pid.to_string()])
-            .output()
-            .await;
+        let mut cmd = Command::new("taskkill");
+        cmd.args(["/F", "/T", "/PID", &pid.to_string()]);
+        suppress_console_window(&mut cmd);
+        let _ = cmd.output().await;
     }
 
     #[cfg(not(target_os = "windows"))]
@@ -351,7 +378,11 @@ impl ServiceManager {
         let check_cmd = "which node";
 
         let parts: Vec<&str> = check_cmd.split_whitespace().collect();
-        if let Ok(output) = Command::new(parts[0]).args(&parts[1..]).output().await {
+        let mut probe = Command::new(parts[0]);
+        probe.args(&parts[1..]);
+        #[cfg(target_os = "windows")]
+        suppress_console_window(&mut probe);
+        if let Ok(output) = probe.output().await {
             if output.status.success() {
                 let path = String::from_utf8_lossy(&output.stdout)
                     .lines()
@@ -496,6 +527,10 @@ impl ServiceManager {
         // Unix：独立进程组，停止时可整组回收（含 npx fork 出的 node 子进程）
         #[cfg(not(target_os = "windows"))]
         cmd.process_group(0);
+
+        // Windows：不要让 npx/node 弹出黑色终端窗口
+        #[cfg(target_os = "windows")]
+        suppress_console_window(&mut cmd);
 
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
@@ -929,6 +964,9 @@ impl ServiceManager {
         if let Some(path_env) = build_path_env(node_path.as_deref()) {
             process.env("PATH", path_env);
         }
+        // Windows：维护命令同样是 console 程序，不要弹终端窗口
+        #[cfg(target_os = "windows")]
+        suppress_console_window(&mut process);
 
         // output() 会一直阻塞到进程结束，这里确实是在等真实结果
         let output = match process.output().await {

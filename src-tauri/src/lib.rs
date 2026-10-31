@@ -4,6 +4,9 @@ mod models;
 mod process_manager;
 mod tray;
 
+#[cfg(target_os = "windows")]
+mod win_console;
+
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, State, WindowEvent};
 
@@ -196,6 +199,11 @@ pub fn run() {
             service_manager: service_manager.clone(),
         })
         .setup(move |app| {
+            // Windows：先给 GUI 进程挂一个隐藏控制台，之后拉起的 node 服务进程树
+            // 会继承它，从而不再弹出黑色终端窗口。
+            #[cfg(target_os = "windows")]
+            win_console::init();
+
             let handle = app.handle();
             let _ = tray::setup_tray(handle, sm_tray);
             Ok(())
