@@ -27,7 +27,12 @@ const token = getGiteeToken();
 
 // Parse target tag from CLI arguments
 const args = process.argv.slice(2);
-let targetTag = args[0];
+// `--no-push` 只镜像 Release 与安装包，不推送代码/标签
+const skipPush = args.includes("--no-push");
+// Windows 上 gh 常不在 PATH（例如装在 C:\Program Files\GitHub CLI），可用 GH_BIN 指定绝对路径
+const GH_BIN = process.env.GH_BIN || "gh";
+
+let targetTag = args.find((a) => !a.startsWith("--"));
 if (!targetTag) {
   try {
     targetTag = execSync("git describe --tags --abbrev=0", { encoding: "utf8" }).trim();
@@ -90,12 +95,22 @@ async function ensureGiteeRepo() {
     ? `ssh -F /dev/null -o StrictHostKeyChecking=accept-new -o IdentitiesOnly=yes -i "${sshKey}"`
     : `ssh -o StrictHostKeyChecking=accept-new`;
 
-  try {
-    execSync(`GIT_SSH_COMMAND='${sshCmd}' git push git@gitee.com:${owner}/${repo}.git main --tags --force`, {
-      stdio: "inherit",
-    });
-  } catch (err) {
-    console.warn(`[sync-gitee] Git push warning:`, err.message);
+  if (skipPush) {
+    console.log(`[sync-gitee] ⏩ --no-push 已指定，跳过代码与标签推送。`);
+  } else {
+    try {
+      // 注意：Windows 的 execSync 走 cmd.exe，`VAR='v' git ...` 这种 POSIX 前缀赋值语法
+      // 会被当成命令名而直接失败，所以这里改用 env 选项传递 GIT_SSH_COMMAND。
+      execSync(`git push git@gitee.com:${owner}/${repo}.git main --tags --force`, {
+        stdio: "inherit",
+        env: { ...process.env, GIT_SSH_COMMAND: sshCmd },
+      });
+    } catch (err) {
+      console.warn(`[sync-gitee] Git push warning:`, err.message);
+      console.warn(
+        `[sync-gitee] 代码/标签未推送成功：请确认 Gitee 已添加本机 SSH 公钥，或改用 --no-push 只同步 Release。`
+      );
+    }
   }
 
   // Ensure repository is public
@@ -162,7 +177,9 @@ async function syncAssetsStreaming(releaseId, downloadDir) {
 
   // 2. Query GitHub assets list
   console.log(`[sync-gitee] Fetching asset list from GitHub release ${targetTag}...`);
-  const ghListRaw = execSync(`gh release view ${targetTag} --json assets`, { encoding: "utf8" });
+  const ghListRaw = execSync(`"${GH_BIN}" release view ${targetTag} --repo ${owner}/${repo} --json assets`, {
+    encoding: "utf8",
+  });
   const ghAssets = JSON.parse(ghListRaw).assets || [];
 
   // Filter and sort: small files & Windows installers first
@@ -199,9 +216,10 @@ async function syncAssetsStreaming(releaseId, downloadDir) {
       ).toFixed(2)} MB)...`
     );
 
-    execSync(`gh release download ${targetTag} --pattern "${fileName}" --dir "${downloadDir}" --clobber`, {
-      stdio: "inherit",
-    });
+    execSync(
+      `"${GH_BIN}" release download ${targetTag} --repo ${owner}/${repo} --pattern "${fileName}" --dir "${downloadDir}" --clobber`,
+      { stdio: "inherit" }
+    );
 
     if (!fs.existsSync(filePath)) {
       console.error(`[sync-gitee] File not downloaded: ${fileName}`);
