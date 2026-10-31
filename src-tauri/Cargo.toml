@@ -1,6 +1,6 @@
 [package]
 name = "openlearn-manager"
-version = "0.1.0"
+version = "0.1.1"
 description = "OpenLearn Manager - Local Web Service GUI"
 authors = ["aymwoo"]
 edition = "2024"
