@@ -37,6 +37,17 @@ export const AdvancedPage: React.FC<AdvancedPageProps> = ({
 }) => {
   const [cliVersionInput, setCliVersionInput] = useState(config.cli_version || "");
   const [dbPathInput, setDbPathInput] = useState(config.db_path || "");
+  // npm 镜像源：null/空 = 使用内置默认（registry.npmmirror.com）
+  const [registryMode, setRegistryMode] = useState<"default" | "official" | "custom">(() => {
+    const r = (config.npm_registry || "").trim();
+    if (r === "") return "default";
+    if (r.includes("registry.npmjs.org")) return "official";
+    return "custom";
+  });
+  const [registryCustom, setRegistryCustom] = useState(() => {
+    const r = (config.npm_registry || "").trim();
+    return r === "" || r.includes("registry.npmjs.org") ? "" : r;
+  });
   const [previewCmd, setPreviewCmd] = useState<string>("");
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -60,10 +71,17 @@ export const AdvancedPage: React.FC<AdvancedPageProps> = ({
   const handleSave = async () => {
     setIsSaving(true);
     try {
+      const registryValue =
+        registryMode === "official"
+          ? "https://registry.npmjs.org"
+          : registryMode === "custom"
+          ? registryCustom.trim()
+          : null;
       const newCfg: AppConfig = {
         ...config,
         cli_version: cliVersionInput.trim() ? cliVersionInput.trim() : null,
         db_path: dbPathInput.trim() ? dbPathInput.trim() : null,
+        npm_registry: registryValue ? registryValue : null,
       };
       await onSaveConfig(newCfg);
       setSaveSuccess(true);
@@ -276,6 +294,51 @@ export const AdvancedPage: React.FC<AdvancedPageProps> = ({
               用于迁移或指定特定目录的 SQLite 数据库文件。
             </p>
           </div>
+        </div>
+
+        {/* npm 镜像源 */}
+        <div className="space-y-2 pt-1">
+          <label className="text-xs font-medium text-slate-600 dark:text-slate-400">
+            npm 镜像源（npx 下载 CLI 时使用）
+          </label>
+          <div className="flex flex-wrap items-center gap-1.5 bg-slate-100 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 p-1 rounded-2xl w-fit">
+            {(
+              [
+                ["default", "国内镜像 (npmmirror)"],
+                ["official", "npm 官方源"],
+                ["custom", "自定义"],
+              ] as const
+            ).map(([mode, label]) => (
+              <button
+                key={mode}
+                onClick={() => setRegistryMode(mode)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-medium transition cursor-pointer ${
+                  registryMode === mode
+                    ? "bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {registryMode === "custom" && (
+            <input
+              type="text"
+              placeholder="https://registry.npmmirror.com"
+              value={registryCustom}
+              onChange={(e) => setRegistryCustom(e.target.value)}
+              className="w-full bg-slate-50 dark:bg-slate-950/70 border border-slate-300 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-slate-900 dark:text-slate-100 text-xs font-mono focus:outline-hidden focus:border-blue-500 placeholder-slate-400 dark:placeholder-slate-600"
+            />
+          )}
+          <p className="text-[11px] text-slate-500 dark:text-slate-400">
+            默认使用国内镜像{" "}
+            <code className="text-slate-700 dark:text-slate-400">
+              https://registry.npmmirror.com
+            </code>
+            ，避免国内网络下 npx 拉包超时；同时会把 better-sqlite3 等原生模块的预编译包也切到镜像。
+            该设置只作用于本程序拉起的 npx 子进程，不会改动你本机的 npm 配置。
+          </p>
         </div>
       </div>
 

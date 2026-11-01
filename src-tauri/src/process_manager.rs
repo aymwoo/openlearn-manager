@@ -199,6 +199,50 @@ fn candidate_node_paths() -> Vec<PathBuf> {
     candidates
 }
 
+/// 默认 npm 镜像源：国内直连 registry.npmjs.org 经常超时/极慢，
+/// 所以缺省就用 npmmirror（原淘宝镜像）的公开源。
+pub const DEFAULT_NPM_REGISTRY: &str = "https://registry.npmmirror.com";
+
+/// 默认镜像对应的「预编译二进制 / node 头文件」镜像前缀。
+/// openlearn-next 依赖 better-sqlite3 这类原生模块，其 prebuild 默认从
+/// GitHub Releases 下载，国内同样要走镜像，否则会卡在 install 阶段。
+const DEFAULT_BINARY_MIRROR: &str = "https://registry.npmmirror.com/-/binary";
+
+/// 取实际生效的 registry：配置为空（None 或空串）时回落到国内默认镜像
+pub fn effective_registry(configured: Option<&str>) -> String {
+    let trimmed = configured.unwrap_or("").trim();
+    if trimmed.is_empty() {
+        DEFAULT_NPM_REGISTRY.to_string()
+    } else {
+        trimmed.to_string()
+    }
+}
+
+/// 把 npm 镜像相关环境变量注入 npx 子进程。
+///
+/// npm 会把 `npm_config_<key>` 形式的环境变量当成配置项读取，
+/// 因此不需要写用户级 .npmrc，也不污染用户本机的 npm 设置。
+fn apply_npm_mirror_env(cmd: &mut Command, registry: Option<&str>) {
+    let registry = effective_registry(registry);
+    cmd.env("npm_config_registry", &registry);
+
+    // 只有走 npmmirror 时才顺带替换二进制镜像；用户自己换成官方源时保持默认行为
+    if registry.contains("npmmirror.com") {
+        cmd.env(
+            "npm_config_disturl",
+            format!("{DEFAULT_BINARY_MIRROR}/node"),
+        );
+        cmd.env(
+            "npm_config_better_sqlite3_binary_host_mirror",
+            format!("{DEFAULT_BINARY_MIRROR}/better-sqlite3"),
+        );
+        cmd.env(
+            "npm_config_sqlite3_binary_host_mirror",
+            format!("{DEFAULT_BINARY_MIRROR}/sqlite3"),
+        );
+    }
+}
+
 /// 在 Node 所在目录或其同级 bin/ 目录下找 npx（Windows 上是 npx.cmd）
 fn resolve_npx(node_path: Option<&str>) -> Option<PathBuf> {
     let dir = simplify_windows_path(Path::new(node_path?))
@@ -537,6 +581,7 @@ impl ServiceManager {
         pkg: &str,
         port: u16,
         db_path: Option<&str>,
+        npm_registry: Option<&str>,
     ) -> Command {
         let npx = resolve_npx(node_path);
 
@@ -578,6 +623,9 @@ impl ServiceManager {
             cmd.env("PATH", path_env);
         }
 
+        // npm 镜像源：默认国内 npmmirror，避免 npx 拉包卡在 registry.npmjs.org
+        apply_npm_mirror_env(&mut cmd, npm_registry);
+
         // Unix：独立进程组，停止时可整组回收（含 npx fork 出的 node 子进程）
         #[cfg(not(target_os = "windows"))]
         cmd.process_group(0);
@@ -598,6 +646,7 @@ impl ServiceManager {
         port: u16,
         cli_version: Option<String>,
         db_path: Option<String>,
+        npm_registry: Option<String>,
     ) -> Result<(), String> {
         let (node_detected, node_path, _is_full) = self.detect_node(&app_handle).await;
         if !node_detected {
@@ -630,14 +679,25 @@ impl ServiceManager {
                 version_tag,
                 START_TIMEOUT.as_secs()
             );
+            let registry_msg = format!(
+                "npm 镜像源: {}",
+                effective_registry(npm_registry.as_deref())
+            );
             let entry = state.append_log("system", &start_msg);
+            let _ = app_handle.emit("app:log-line", &entry);
+            let entry = state.append_log("system", &registry_msg);
             let _ = app_handle.emit("app:log-line", &entry);
         }
 
         let version_tag = cli_version.unwrap_or_else(|| "latest".to_string());
         let pkg = format!("openlearn-next@{}", version_tag);
-        let mut cmd =
-            Self::build_start_command(node_path.as_deref(), &pkg, port, db_path.as_deref());
+        let mut cmd = Self::build_start_command(
+            node_path.as_deref(),
+            &pkg,
+            port,
+            db_path.as_deref(),
+            npm_registry.as_deref(),
+        );
 
         let mut child = match cmd.spawn() {
             Ok(c) => c,
@@ -1021,6 +1081,8 @@ impl ServiceManager {
         if let Some(path_env) = build_path_env(node_path.as_deref()) {
             process.env("PATH", path_env);
         }
+        // 维护命令同样走镜像源（doctor / backup / reset-admin 等都是 npx 拉包执行）
+        apply_npm_mirror_env(&mut process, config.npm_registry.as_deref());
         // Windows：维护命令同样是 console 程序，不要弹终端窗口
         #[cfg(target_os = "windows")]
         suppress_console_window(&mut process);

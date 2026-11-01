@@ -6,6 +6,12 @@ pub struct AppConfig {
     pub cli_version: Option<String>,
     pub db_path: Option<String>,
     pub theme: String,
+    /// npm 镜像源（npx 拉包用）。`None` = 使用内置默认镜像
+    /// （DEFAULT_NPM_REGISTRY，即 registry.npmmirror.com）。
+    /// 加 `#[serde(default)]` 是为了让老版本配置文件（没有这个字段）仍能正常反序列化，
+    /// 否则 load_config 会解析失败并退回全默认配置，把用户已有设置全部冲掉。
+    #[serde(default)]
+    pub npm_registry: Option<String>,
 }
 
 impl Default for AppConfig {
@@ -16,6 +22,7 @@ impl Default for AppConfig {
             cli_version: None,
             db_path: None,
             theme: "system".to_string(),
+            npm_registry: None,
         }
     }
 }

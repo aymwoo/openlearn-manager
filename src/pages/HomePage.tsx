@@ -27,6 +27,7 @@ interface HomePageProps {
   onUpdatePort: (port: number) => void;
   cliVersion?: string | null;
   dbPath?: string | null;
+  npmRegistry?: string | null;
 }
 
 export const HomePage: React.FC<HomePageProps> = ({
@@ -38,6 +39,7 @@ export const HomePage: React.FC<HomePageProps> = ({
   onUpdatePort,
   cliVersion,
   dbPath,
+  npmRegistry,
 }) => {
   const [portInput, setPortInput] = useState<number>(configuredPort);
   // idle | start | stop —— 用于区分「正在等待服务就绪」和「正在停止」
@@ -99,7 +101,7 @@ export const HomePage: React.FC<HomePageProps> = ({
       }
 
       // 后端只在「端口真的开始监听」后才 resolve，否则抛错
-      await api.startService(portInput, cliVersion, dbPath);
+      await api.startService(portInput, cliVersion, dbPath, npmRegistry);
       onUpdatePort(portInput);
       await onRefreshStatus();
     } catch (err: any) {

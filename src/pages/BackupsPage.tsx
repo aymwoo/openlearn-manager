@@ -88,7 +88,7 @@ export const BackupsPage: React.FC<BackupsPageProps> = ({
     setRestoreSuccessPrompt(false);
     try {
       const cfg = await api.getConfig();
-      await api.startService(cfg.port, cfg.cli_version, cfg.db_path);
+      await api.startService(cfg.port, cfg.cli_version, cfg.db_path, cfg.npm_registry);
       await onRefreshStatus();
     } catch (err: any) {
       setErrorMessage(`重启服务失败: ${err}`);

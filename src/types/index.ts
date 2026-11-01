@@ -37,6 +37,7 @@ export interface AppConfig {
   cli_version?: string | null;
   db_path?: string | null;
   theme: string;
+  npm_registry?: string | null;
 }
 
 export interface CommandOutputResult {

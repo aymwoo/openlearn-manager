@@ -37,13 +37,16 @@ async fn start_service(
     port: u16,
     cli_version: Option<String>,
     db_path: Option<String>,
+    npm_registry: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     // 绿色版：用户没指定 db_path 时，兜底到便携目录 data/openlearn-next/data.db
     let db_path = portable::resolve_db_path(db_path);
+    // 前端没传时回落到配置文件里的镜像源，配置里也没有就用内置默认（npmmirror）
+    let registry = npm_registry.or_else(|| config::load_config().npm_registry);
     state
         .service_manager
-        .start_service(app, port, cli_version, db_path)
+        .start_service(app, port, cli_version, db_path, registry)
         .await
 }
 
@@ -169,7 +172,10 @@ fn preview_command(
     cli_version: Option<String>,
     db_path: Option<String>,
 ) -> String {
-    ServiceManager::build_command_str(port, cli_version.as_deref(), db_path.as_deref())
+    let cmd = ServiceManager::build_command_str(port, cli_version.as_deref(), db_path.as_deref());
+    // 把实际生效的 npm 镜像源也展示出来，方便排查「拉包慢 / 拉不到」的问题
+    let registry = process_manager::effective_registry(config::load_config().npm_registry.as_deref());
+    format!("npm_config_registry={registry} {cmd}")
 }
 
 #[tauri::command]

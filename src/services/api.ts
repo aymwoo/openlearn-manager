@@ -104,7 +104,8 @@ export const api = {
   startService: async (
     port: number,
     cliVersion?: string | null,
-    dbPath?: string | null
+    dbPath?: string | null,
+    npmRegistry?: string | null
   ): Promise<void> => {
     if (!isTauri) {
       mockStatus.is_starting = true;
@@ -124,6 +125,7 @@ export const api = {
       port,
       cliVersion: cliVersion || null,
       dbPath: dbPath || null,
+      npmRegistry: npmRegistry || null,
     });
   },
 

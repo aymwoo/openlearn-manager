@@ -196,6 +196,7 @@ export const App: React.FC = () => {
             onUpdatePort={handleUpdatePort}
             cliVersion={config.cli_version}
             dbPath={config.db_path}
+            npmRegistry={config.npm_registry}
           />
         )}
         {currentTab === "backups" && (
