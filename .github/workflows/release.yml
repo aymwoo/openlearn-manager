@@ -68,7 +68,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .cache/node-dist
-          key: node-runtime-${{ matrix.platform }}-v22.11.0
+          key: node-runtime-${{ matrix.platform }}-v22.23.4
           restore-keys: |
             node-runtime-${{ matrix.platform }}-
 

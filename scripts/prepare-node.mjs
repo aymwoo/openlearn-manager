@@ -11,8 +11,10 @@ const RESOURCES_DIR = path.resolve(ROOT_DIR, "src-tauri", "resources");
 const NODE_TARGET_DIR = path.resolve(RESOURCES_DIR, "node");
 const CACHE_DIR = path.resolve(ROOT_DIR, ".cache", "node-dist");
 
-// Default Node.js LTS version to bundle
-const DEFAULT_NODE_VERSION = "22.11.0";
+// Default Node.js LTS version to bundle.
+// 注意：不要低于 22.12 —— openlearn-next 的打包产物里存在 require(esm) 调用，
+// 而 Node 对 require(esm) 的支持是 22.12 起才默认开启（22.11.0 会直接 ERR_REQUIRE_ESM）。
+const DEFAULT_NODE_VERSION = "22.23.4";
 
 // Parse CLI flags
 const args = process.argv.slice(2);
@@ -135,8 +137,12 @@ async function extractAndInstall() {
 
   try {
     if (isWindows) {
-      // Use system tar which is built-in on Windows 10+ and GitHub Windows runners
-      execSync(`tar -xf "${localArchivePath}" -C "${tempExtractDir}"`, { stdio: "inherit" });
+      // Use system tar which is built-in on Windows 10+ and GitHub Windows runners.
+      // 显式用 System32 的 tar：GNU tar（Git Bash 自带）会把 "C:\..." 当成远程主机，
+      // 报 "Cannot connect to C: resolve failed"。
+      const systemTar = "C:\\Windows\\System32\\tar.exe";
+      const tarBin = fs.existsSync(systemTar) ? systemTar : "tar";
+      execSync(`"${tarBin}" -xf "${localArchivePath}" -C "${tempExtractDir}"`, { stdio: "inherit" });
     } else {
       execSync(`tar -xzf "${localArchivePath}" -C "${tempExtractDir}"`, { stdio: "inherit" });
     }

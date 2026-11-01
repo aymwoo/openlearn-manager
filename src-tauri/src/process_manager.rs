@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 use std::net::TcpListener;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -126,6 +126,25 @@ pub struct ServiceManager {
     pub state: Arc<Mutex<ProcessState>>,
 }
 
+/// 把 `\\?\C:\...` / `\\?\UNC\server\share` 这类 verbatim 路径还原成普通路径。
+///
+/// Tauri 的 `resource_dir()` 和 `std::fs::canonicalize()` 在 Windows 上都可能返回
+/// verbatim 路径（Full 版内嵌 Node 恰好就来自 resource_dir），而 `cmd.exe`
+/// 无法正确解析它 —— 实测 `cmd /C "\\?\C:\...\OpenLearn Manager\...\npx.cmd" ...`
+/// 会在空格处把路径截断，报「不是内部或外部命令」并以退出码 1 结束，
+/// 这正是 Full 版「服务启动失败（退出码 1，进程无任何输出）」的根源。
+#[cfg(target_os = "windows")]
+fn simplify_windows_path(p: &Path) -> PathBuf {
+    let s = p.as_os_str().to_string_lossy();
+    if let Some(rest) = s.strip_prefix(r"\\?\UNC\") {
+        return PathBuf::from(format!(r"\\{rest}"));
+    }
+    if let Some(rest) = s.strip_prefix(r"\\?\") {
+        return PathBuf::from(rest.to_string());
+    }
+    p.to_path_buf()
+}
+
 /// 常见 Node 安装位置兜底（桌面 GUI 从启动器拉起时 PATH 往往被精简）
 fn candidate_node_paths() -> Vec<PathBuf> {
     let mut candidates: Vec<PathBuf> = Vec::new();
@@ -178,6 +197,11 @@ fn candidate_node_paths() -> Vec<PathBuf> {
 
 /// 在 Node 所在目录或其同级 bin/ 目录下找 npx（Windows 上是 npx.cmd）
 fn resolve_npx(node_path: Option<&str>) -> Option<PathBuf> {
+    #[cfg(target_os = "windows")]
+    let dir = simplify_windows_path(Path::new(node_path?))
+        .parent()?
+        .to_path_buf();
+    #[cfg(not(target_os = "windows"))]
     let dir = PathBuf::from(node_path?).parent()?.to_path_buf();
 
     #[cfg(target_os = "windows")]
@@ -202,6 +226,11 @@ fn resolve_npx(node_path: Option<&str>) -> Option<PathBuf> {
 
 /// 把 Node 所在目录拼到 PATH 最前面，保证 npx 及其拉起的 node 可被找到
 fn build_path_env(node_path: Option<&str>) -> Option<String> {
+    #[cfg(target_os = "windows")]
+    let dir = simplify_windows_path(Path::new(node_path?))
+        .parent()?
+        .to_path_buf();
+    #[cfg(not(target_os = "windows"))]
     let dir = PathBuf::from(node_path?).parent()?.to_path_buf();
     let dir_str = dir.to_string_lossy().to_string();
     if dir_str.is_empty() {
@@ -313,7 +342,7 @@ impl ServiceManager {
     pub async fn detect_node(&self, app_handle: &AppHandle) -> (bool, Option<String>, bool) {
         // 0. Check explicit custom embedded node path via env var (for development / testing)
         if let Ok(custom_embedded) = std::env::var("OPENLEARN_EMBEDDED_NODE") {
-            let p = PathBuf::from(custom_embedded.trim());
+            let p = simplify_windows_path(Path::new(custom_embedded.trim()));
             if p.exists() {
                 return (true, Some(p.to_string_lossy().to_string()), true);
             }
@@ -334,7 +363,8 @@ impl ServiceManager {
 
             for embedded_node in candidates {
                 if embedded_node.exists() {
-                    return (true, Some(embedded_node.to_string_lossy().to_string()), true);
+                    let simplified = simplify_windows_path(&embedded_node);
+                    return (true, Some(simplified.to_string_lossy().to_string()), true);
                 }
             }
         }
@@ -359,9 +389,11 @@ impl ServiceManager {
             for embedded_node in dev_candidates {
                 if embedded_node.exists() {
                     if let Ok(canonical) = embedded_node.canonicalize() {
-                        return (true, Some(canonical.to_string_lossy().to_string()), true);
+                        let simplified = simplify_windows_path(&canonical);
+                        return (true, Some(simplified.to_string_lossy().to_string()), true);
                     }
-                    return (true, Some(embedded_node.to_string_lossy().to_string()), true);
+                    let simplified = simplify_windows_path(&embedded_node);
+                    return (true, Some(simplified.to_string_lossy().to_string()), true);
                 }
             }
         }
@@ -671,6 +703,9 @@ impl ServiceManager {
             };
 
             if let Some(code) = exit_code {
+                // 子进程退出时它的输出可能还在管道里没被读取任务写进日志，
+                // 不等一下就会误报「进程无任何输出」，排查起来非常痛苦
+                tokio::time::sleep(Duration::from_millis(800)).await;
                 let tail = {
                     let st = self.state.lock().await;
                     st.tail_output(15)
