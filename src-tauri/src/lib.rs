@@ -1,6 +1,7 @@
 mod backup;
 mod config;
 mod models;
+mod portable;
 mod process_manager;
 mod tray;
 
@@ -11,7 +12,8 @@ use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, State, WindowEvent};
 
 use crate::models::{
-    AppConfig, BackupInfo, CommandOutputResult, LogEntry, PortCheckResult, ServiceStatus,
+    AppConfig, BackupInfo, CommandOutputResult, DataDirInfo, LogEntry, PortCheckResult,
+    ServiceStatus,
 };
 use crate::process_manager::ServiceManager;
 
@@ -37,6 +39,8 @@ async fn start_service(
     db_path: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
+    // 绿色版：用户没指定 db_path 时，兜底到便携目录 data/openlearn-next/data.db
+    let db_path = portable::resolve_db_path(db_path);
     state
         .service_manager
         .start_service(app, port, cli_version, db_path)
@@ -64,6 +68,16 @@ fn get_config() -> AppConfig {
     config::load_config()
 }
 
+/// 当前数据目录 + 是否绿色版（便携）模式
+#[tauri::command]
+fn get_data_dir() -> DataDirInfo {
+    let (portable, path) = portable::data_dir_display();
+    DataDirInfo {
+        portable,
+        path: path.unwrap_or_default(),
+    }
+}
+
 #[tauri::command]
 fn save_config(cfg: AppConfig) -> Result<(), String> {
     config::save_config(&cfg)
@@ -81,7 +95,9 @@ async fn create_backup(app: AppHandle, state: State<'_, AppState>) -> Result<Bac
     let filepath = dir.join(&filename);
     let filepath_str = filepath.to_string_lossy().to_string();
 
-    let cfg = config::load_config();
+    let mut cfg = config::load_config();
+    // 绿色版：未显式指定 db_path 时兜底到便携目录 data/openlearn-next/data.db
+    cfg.db_path = portable::db_path_from_config(&cfg);
     let res = state
         .service_manager
         .run_cli_command(app.clone(), "backup", Some(filepath_str.clone()), &cfg, false)
@@ -109,7 +125,9 @@ async fn restore_backup(
     force: bool,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let cfg = config::load_config();
+    let mut cfg = config::load_config();
+    // 绿色版：未显式指定 db_path 时兜底到便携目录 data/openlearn-next/data.db
+    cfg.db_path = portable::db_path_from_config(&cfg);
     let res = state
         .service_manager
         .run_cli_command(app.clone(), "restore", Some(filepath), &cfg, force)
@@ -136,7 +154,9 @@ async fn run_cli_command(
     extra_arg: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<CommandOutputResult, String> {
-    let cfg = config::load_config();
+    let mut cfg = config::load_config();
+    // 绿色版：未显式指定 db_path 时兜底到便携目录 data/openlearn-next/data.db
+    cfg.db_path = portable::db_path_from_config(&cfg);
     state
         .service_manager
         .run_cli_command(app, &command_type, extra_arg, &cfg, false)
@@ -238,6 +258,7 @@ pub fn run() {
             clear_logs,
             get_config,
             save_config,
+            get_data_dir,
             get_backups,
             create_backup,
             restore_backup,

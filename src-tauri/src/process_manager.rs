@@ -367,6 +367,30 @@ impl ServiceManager {
             }
         }
 
+        // 1.5 绿色版（免安装 zip）兜底：exe 同级的 resources/node
+        //     直接运行未打包的 exe 时，Tauri 的 `resource_dir()` 未必可用
+        //     （实测 `tauri build --no-bundle` 产物就会落到系统 node 上），
+        //     这里按 exe 的实际位置再找一次，保证绿色版能用内嵌 Node。
+        if let Ok(exe) = std::env::current_exe() {
+            if let Some(dir) = exe.parent() {
+                #[cfg(target_os = "windows")]
+                let portable_candidates = [dir.join("resources").join("node").join("node.exe")];
+                #[cfg(not(target_os = "windows"))]
+                let portable_candidates = [dir.join("resources").join("node").join("node")];
+
+                for embedded_node in portable_candidates {
+                    if embedded_node.exists() {
+                        let simplified = simplify_windows_path(&embedded_node);
+                        return (
+                            true,
+                            Some(simplified.to_string_lossy().to_string()),
+                            true,
+                        );
+                    }
+                }
+            }
+        }
+
         // 2. Check dev-mode relative paths (src-tauri/resources/node or resources/node)
         for candidate_dir in [
             PathBuf::from("resources").join("node"),

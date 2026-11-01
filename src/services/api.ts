@@ -4,6 +4,7 @@ import type {
   AppConfig,
   BackupInfo,
   CommandOutputResult,
+  DataDirInfo,
   LogEntry,
   PortCheckResult,
   ServiceStatus,
@@ -153,6 +154,11 @@ export const api = {
   getConfig: async (): Promise<AppConfig> => {
     if (!isTauri) return { ...mockConfig };
     return await invoke<AppConfig>("get_config");
+  },
+
+  getDataDir: async (): Promise<DataDirInfo> => {
+    if (!isTauri) return { portable: false, path: "" };
+    return await invoke<DataDirInfo>("get_data_dir");
   },
 
   saveConfig: async (cfg: AppConfig): Promise<void> => {

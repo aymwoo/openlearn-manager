@@ -4,6 +4,10 @@ use chrono::Local;
 use crate::models::BackupInfo;
 
 pub fn get_backup_dir() -> PathBuf {
+    // 便携（绿色版）模式：备份落在 exe 同级的 data/backups
+    if let Some(dir) = crate::portable::backup_dir() {
+        return dir;
+    }
     let docs = dirs::document_dir().unwrap_or_else(|| {
         dirs::home_dir().unwrap_or_else(|| PathBuf::from(".")).join("Documents")
     });

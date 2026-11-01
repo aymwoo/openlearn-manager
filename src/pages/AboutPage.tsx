@@ -1,6 +1,6 @@
-import React from "react";
-import { Server, ExternalLink, ShieldCheck, Cpu } from "lucide-react";
-import type { ServiceStatus } from "../types";
+import React, { useEffect, useState } from "react";
+import { Server, ExternalLink, ShieldCheck, Cpu, FolderOpen } from "lucide-react";
+import type { DataDirInfo, ServiceStatus } from "../types";
 import { api } from "../services/api";
 
 interface AboutPageProps {
@@ -26,6 +26,22 @@ const GithubIcon: React.FC<{ className?: string }> = ({ className }) => (
 
 export const AboutPage: React.FC<AboutPageProps> = ({ status }) => {
   const repoUrl = "https://github.com/aymwoo/openlearn-manager";
+  const [dataDir, setDataDir] = useState<DataDirInfo | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    api
+      .getDataDir()
+      .then((info) => {
+        if (alive) setDataDir(info);
+      })
+      .catch(() => {
+        if (alive) setDataDir(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const handleOpenRepo = async () => {
     try {
@@ -97,8 +113,34 @@ export const AboutPage: React.FC<AboutPageProps> = ({ status }) => {
           <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800/80 space-y-1">
             <span className="text-slate-500 font-medium">打包模式</span>
             <p className="text-slate-800 dark:text-slate-200 font-medium">
-              {status?.is_full_edition ? "Full 安装版（内嵌 Node 22 LTS）" : "Lite 便携版（系统 Node）"}
+              {status?.is_full_edition ? "Full 版（内嵌 Node 22 LTS）" : "Lite 版（依赖系统 Node）"}
             </p>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800/80 space-y-1 md:col-span-2">
+            <span className="text-slate-500 font-medium flex items-center space-x-1.5">
+              <FolderOpen className="w-3.5 h-3.5" />
+              <span>
+                数据目录
+                {dataDir?.portable && (
+                  <span className="ml-1.5 text-emerald-600 dark:text-emerald-400">
+                    （绿色版便携模式）
+                  </span>
+                )}
+              </span>
+            </span>
+            <p
+              className="text-slate-800 dark:text-slate-200 font-mono text-[11px] truncate"
+              title={dataDir?.path || "未知"}
+            >
+              {dataDir?.path || "未知"}
+            </p>
+            {dataDir?.portable && (
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                配置、备份与数据库都在本目录下，整个文件夹可以整体拷走；
+                删除程序目录里的 portable.txt 即恢复为写入系统用户目录。
+              </p>
+            )}
           </div>
 
           <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800/80 space-y-1">

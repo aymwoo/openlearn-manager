@@ -62,3 +62,12 @@ pub struct CommandOutputResult {
     pub success: bool,
     pub output: String,
 }
+
+/// 当前数据落在哪（关于页展示用）
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DataDirInfo {
+    /// 是否为绿色版（便携）模式
+    pub portable: bool,
+    /// 数据目录；取不到时为空字符串
+    pub path: String,
+}

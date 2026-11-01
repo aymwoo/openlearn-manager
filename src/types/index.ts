@@ -44,4 +44,10 @@ export interface CommandOutputResult {
   output: string;
 }
 
+/** 数据落在哪个目录；portable 为 true 表示绿色版（便携）模式 */
+export interface DataDirInfo {
+  portable: boolean;
+  path: string;
+}
+
 export type NavTab = "home" | "backups" | "logs" | "advanced" | "about";
