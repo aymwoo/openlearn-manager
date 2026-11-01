@@ -130,14 +130,15 @@ jobs:
           New-Item -ItemType Directory -Path $stage -Force | Out-Null
           Copy-Item "src-tauri/target/x86_64-pc-windows-msvc/release/openlearn-manager.exe" "$stage/OpenLearn Manager.exe"
           Copy-Item "src-tauri/resources" "$stage/resources" -Recurse -Force
+          # 注意：必须用 CRLF（记事本只认 CRLF），并用 utf8BOM 保证任何编辑器都不乱码
           $note = @(
             "OpenLearn Manager 绿色版（便携版）",
             "",
             "有这个文件 = 便携模式：配置、备份、数据库都会写在程序目录下的 data\ 里，",
             "整个文件夹拷到 U 盘即可连数据一起带走。",
             "删掉本文件则恢复为默认行为（写入系统用户目录）。"
-          ) -join "`n"
-          Set-Content -Path "$stage/portable.txt" -Value $note -Encoding utf8
+          ) -join "`r`n"
+          Set-Content -Path "$stage/portable.txt" -Value $note -Encoding utf8BOM -NoNewline
           Compress-Archive -Path $stage -DestinationPath "release-artifacts/OpenLearn.Manager_${ver}_x64-portable-Lite.zip" -CompressionLevel Optimal
           Remove-Item -Recurse -Force $stage
           Write-Output "Staged portable Lite zip"
@@ -191,8 +192,8 @@ jobs:
             "删掉本文件则恢复为默认行为（写入系统用户目录）。",
             "",
             "resources\node 是内嵌的 Node 22 LTS，本机无需另外安装 Node.js。"
-          ) -join "`n"
-          Set-Content -Path "$stage/portable.txt" -Value $note -Encoding utf8
+          ) -join "`r`n"
+          Set-Content -Path "$stage/portable.txt" -Value $note -Encoding utf8BOM -NoNewline
           Compress-Archive -Path $stage -DestinationPath "release-artifacts/OpenLearn.Manager_${ver}_x64-portable-Full.zip" -CompressionLevel Optimal
           Remove-Item -Recurse -Force $stage
           Write-Output "Staged portable Full zip"
