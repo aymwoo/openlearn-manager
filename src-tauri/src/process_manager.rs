@@ -133,7 +133,11 @@ pub struct ServiceManager {
 /// 无法正确解析它 —— 实测 `cmd /C "\\?\C:\...\OpenLearn Manager\...\npx.cmd" ...`
 /// 会在空格处把路径截断，报「不是内部或外部命令」并以退出码 1 结束，
 /// 这正是 Full 版「服务启动失败（退出码 1，进程无任何输出）」的根源。
-#[cfg(target_os = "windows")]
+///
+/// 注意：这个函数**不加** `#[cfg(target_os = "windows")]` —— 它在非 Windows 平台
+/// 上是纯粹的 no-op（Unix 路径不可能带 `\\?\` 前缀），而统一提供一份实现可以
+/// 避免在 `detect_node()` 等处写出大量 cfg 分支（此前正是因为调用点漏了 cfg
+/// 门控，导致 Linux/macOS 构建报 `cannot find function`）。
 fn simplify_windows_path(p: &Path) -> PathBuf {
     let s = p.as_os_str().to_string_lossy();
     if let Some(rest) = s.strip_prefix(r"\\?\UNC\") {
@@ -197,12 +201,9 @@ fn candidate_node_paths() -> Vec<PathBuf> {
 
 /// 在 Node 所在目录或其同级 bin/ 目录下找 npx（Windows 上是 npx.cmd）
 fn resolve_npx(node_path: Option<&str>) -> Option<PathBuf> {
-    #[cfg(target_os = "windows")]
     let dir = simplify_windows_path(Path::new(node_path?))
         .parent()?
         .to_path_buf();
-    #[cfg(not(target_os = "windows"))]
-    let dir = PathBuf::from(node_path?).parent()?.to_path_buf();
 
     #[cfg(target_os = "windows")]
     let names = ["npx.cmd", "npx.exe", "npx"];
@@ -226,12 +227,9 @@ fn resolve_npx(node_path: Option<&str>) -> Option<PathBuf> {
 
 /// 把 Node 所在目录拼到 PATH 最前面，保证 npx 及其拉起的 node 可被找到
 fn build_path_env(node_path: Option<&str>) -> Option<String> {
-    #[cfg(target_os = "windows")]
     let dir = simplify_windows_path(Path::new(node_path?))
         .parent()?
         .to_path_buf();
-    #[cfg(not(target_os = "windows"))]
-    let dir = PathBuf::from(node_path?).parent()?.to_path_buf();
     let dir_str = dir.to_string_lossy().to_string();
     if dir_str.is_empty() {
         return None;
