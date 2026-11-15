@@ -36,7 +36,19 @@ pub struct ServiceStatus {
     pub cli_version: Option<String>,
     pub node_detected: bool,
     pub node_path: Option<String>,
+    /// 实际探测到的 Node 版本号（已去掉 `v` 前缀，如 `24.22.3`）。
+    /// 探测失败或未检测到 Node 时为 `None`。
+    #[serde(default)]
+    pub node_version: Option<String>,
+    /// 该版本能否跑得动 openlearn-next（要求 >= 22.12：其产物里有 require(esm)）。
+    /// 版本未知时按 `true` 处理，避免探测失败反而把用户吓一跳。
+    #[serde(default = "default_true")]
+    pub node_version_supported: bool,
     pub is_full_edition: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

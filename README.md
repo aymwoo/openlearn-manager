@@ -12,7 +12,7 @@
 
 - **薄封装（Thin Wrapper）**：GUI 仅负责环境检测、参数拼装、子进程生命周期调度（spawn / kill）与 stdout/stderr 实时日志流展示；所有核心业务仍由 `openlearn-next` CLI 执行。
 - **双版本分发与绿色便携模式**：
-  - **Full 安装版**：内嵌 Node.js 22 LTS 便携运行时，下载即用，无需教师电脑预先配置开发环境。
+  - **Full 安装版**：内嵌 Node.js 24 LTS 便携运行时，下载即用，无需教师电脑预先配置开发环境。
   - **Lite 便携版**：复用本机系统 Node.js 环境，安装包体积更小；若未检测到 Node.js 会在首页顶部展示醒目告警与下载指引。
   - **Windows 绿色便携版（免安装 zip）**：目录内附带 `portable.txt` 标记文件，自动将配置、备份与数据库写入同级 `data/` 目录，可直接随 U 盘拷贝迁移。
 - **国内 npm 镜像加速**：`npx` 拉取 `openlearn-next` 默认使用国内镜像（`https://registry.npmmirror.com`），可在「高级」页随时切换为 npm 官方源或自定义镜像。
@@ -80,11 +80,11 @@
 
 | 页面 | 主要功能 |
 | --- | --- |
-| **首页 (Home)** | 一键启停服务、打开浏览器、实时内嵌日志、端口配置与非侵入式冲突检测、Node 运行时模式展示与缺失告警 |
+| **首页 (Home)** | 一键启停服务、打开浏览器、实时内嵌日志、端口配置与非侵入式冲突检测、Node 运行时模式与**实测版本**展示、缺失 / 版本过低告警 |
 | **备份 (Backups)** | 固定目录 `Documents/OpenLearn/backups` 管理、一键新建时间戳快照、打开备份目录、防呆安全恢复与重启引导 |
 | **日志 (Logs)** | 2000 行环形实时终端日志流、ANSI 彩色解析、纯文本关键字过滤、自动滚动开关、复制全部与清空 |
 | **高级 (Advanced)** | 主题切换（浅色/深色/跟随系统）、CLI 命令实时预览、钉死 CLI 版本、自定义 `--db-path`、npm 镜像源切换、`doctor` / `doctor --fix` / 重置密码 / 清理缓存 |
-| **关于 (About)** | 应用版本、运行环境诊断信息（桌面外壳、前端框架、打包模式、数据目录 / 便携模式、Node 路径）与项目仓库链接 |
+| **关于 (About)** | 应用版本、运行环境诊断信息（桌面外壳、前端框架、打包模式、**Node 实测版本与兼容性**、数据目录 / 便携模式、Node 路径）与项目仓库链接 |
 
 ---
 
@@ -95,7 +95,7 @@
                      ↓ (Tauri IPC Invoke / Events)
 [ Tauri 2 核心层 (Rust)：进程管理 / 系统托盘 / 单实例 / 配置读写 / 备份管理 ]
                      ↓ (spawn / kill)
-[ Node.js 运行时 ]  ← Full 版：内嵌 Node 22 LTS；Lite 版：本机系统 Node
+[ Node.js 运行时 ]  ← Full 版：内嵌 Node 24 LTS；Lite 版：本机系统 Node
                      ↓
 [ openlearn-next CLI ]  ← 默认 npx openlearn-next@latest
                      ↓
@@ -131,7 +131,7 @@ pnpm install
 # Lite 模式（清理内嵌 Node，使用系统 Node）
 pnpm prepare:node:lite
 
-# Full 模式（下载并解压对应平台的 Node 22 LTS 到 src-tauri/resources/node）
+# Full 模式（下载并解压对应平台的 Node 24 LTS 到 src-tauri/resources/node）
 pnpm prepare:node:full
 # 国内网络环境可指定镜像源加速下载：
 # NODEJS_MIRROR=https://npmmirror.com/mirrors/node pnpm prepare:node:full

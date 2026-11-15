@@ -28,6 +28,29 @@ const PROGRESS_REPORT_INTERVAL: Duration = Duration::from_secs(10);
 /// node server 子进程，并预留最长 35s 优雅关机缓冲，因此这里不能只等几秒。
 const PORT_RELEASE_TIMEOUT: Duration = Duration::from_secs(15);
 
+/// 仿真 Full 模式时拼在 Node 路径后面的展示后缀（仅用于界面展示，探测/执命令时要剥掉）
+const FULL_SIM_SUFFIX: &str = " (仿真 Full 模式)";
+
+/// openlearn-next 运行时最低容忍的 Node 版本（major, minor）。
+/// 它打包产物里有 `require(esm)` 调用，Node 从 22.12 起才默认开启该能力，
+/// 22.11 及更低会直接 `ERR_REQUIRE_ESM`。
+const MIN_NODE_VERSION: (u32, u32) = (22, 12);
+
+/// 判断 `node -v` 报出的版本号（已去 `v`）是否满足最低要求。
+/// 解析不出数字时按“无法判定 = 放行”处理，不拿探测失败去拦用户。
+fn is_node_version_supported(version: &str) -> bool {
+    let mut parts = version.split('.');
+    let major = match parts.next().and_then(|s| s.trim().parse::<u32>().ok()) {
+        Some(v) => v,
+        None => return true,
+    };
+    let minor = parts
+        .next()
+        .and_then(|s| s.trim().parse::<u32>().ok())
+        .unwrap_or(0);
+    (major, minor) >= MIN_NODE_VERSION
+}
+
 /// Windows：让子进程不要弹出黑色终端窗口。
 ///
 /// 正常情况下本进程已持有一个隐藏控制台（见 `win_console` 模块），子进程直接继承它，
@@ -66,6 +89,9 @@ pub struct ProcessState {
     pub next_log_id: u64,
     /// 当前这次启动过程中的原始输出，启动失败时用于拼错误信息
     pub recent_output: VecDeque<String>,
+    /// `node -v` 探测结果缓存：`(实际可执行文件路径, 版本号)`。
+    /// 只在路径变化时重新起子进程，否则每次 `get_status` 才不用起一次 node。
+    pub node_probe: Option<(String, Option<String>)>,
 }
 
 impl ProcessState {
@@ -81,6 +107,7 @@ impl ProcessState {
             logs: VecDeque::with_capacity(MAX_LOG_LINES),
             next_log_id: 0,
             recent_output: VecDeque::with_capacity(MAX_RECENT_OUTPUT),
+            node_probe: None,
         }
     }
 
@@ -244,8 +271,13 @@ fn apply_npm_mirror_env(cmd: &mut Command, registry: Option<&str>) {
 }
 
 /// 在 Node 所在目录或其同级 bin/ 目录下找 npx（Windows 上是 npx.cmd）
+/// 从展示用路径里剥掉「仿真 Full 模式」后缀，得到真正的可执行文件路径
+fn strip_display_suffix(display_path: &str) -> &str {
+    display_path.trim_end_matches(FULL_SIM_SUFFIX).trim()
+}
+
 fn resolve_npx(node_path: Option<&str>) -> Option<PathBuf> {
-    let dir = simplify_windows_path(Path::new(node_path?))
+    let dir = simplify_windows_path(Path::new(strip_display_suffix(node_path?)))
         .parent()?
         .to_path_buf();
 
@@ -271,7 +303,7 @@ fn resolve_npx(node_path: Option<&str>) -> Option<PathBuf> {
 
 /// 把 Node 所在目录拼到 PATH 最前面，保证 npx 及其拉起的 node 可被找到
 fn build_path_env(node_path: Option<&str>) -> Option<String> {
-    let dir = simplify_windows_path(Path::new(node_path?))
+    let dir = simplify_windows_path(Path::new(strip_display_suffix(node_path?)))
         .parent()?
         .to_path_buf();
     let dir_str = dir.to_string_lossy().to_string();
@@ -490,7 +522,7 @@ impl ServiceManager {
                     .to_string();
                 if !path.is_empty() {
                     let display_path = if force_full {
-                        format!("{} (仿真 Full 模式)", path)
+                        format!("{}{}", path, FULL_SIM_SUFFIX)
                     } else {
                         path
                     };
@@ -504,7 +536,7 @@ impl ServiceManager {
             if candidate.exists() {
                 let p_str = candidate.to_string_lossy().to_string();
                 let display_path = if force_full {
-                    format!("{} (仿真 Full 模式)", p_str)
+                    format!("{}{}", p_str, FULL_SIM_SUFFIX)
                 } else {
                     p_str
                 };
@@ -544,6 +576,15 @@ impl ServiceManager {
     /// Get current service status
     pub async fn get_status(&self, app_handle: &AppHandle) -> ServiceStatus {
         let (node_detected, node_path, is_full_edition) = self.detect_node(app_handle).await;
+        // 真实版本号：拿不到就是 `None`，前端会退回不带版本号的文案
+        let node_version = match node_path.as_deref() {
+            Some(p) if node_detected => self.probe_node_version(p).await,
+            _ => None,
+        };
+        let node_version_supported = node_version
+            .as_deref()
+            .map(is_node_version_supported)
+            .unwrap_or(true);
         let state = self.state.lock().await;
 
         ServiceStatus {
@@ -554,8 +595,53 @@ impl ServiceManager {
             cli_version: state.cli_version.clone(),
             node_detected,
             node_path,
+            node_version,
+            node_version_supported,
             is_full_edition,
         }
+    }
+
+    /// 探测 node 可执行文件的版本（`node -v`），结果按路径缓存在进程状态里。
+    ///
+    /// `display_path` 可能是带展示后缀的（如 `... (仿真 Full 模式)`），
+    /// 起子进程前要把后缀剥掉，否则会找不到可执行文件。
+    pub async fn probe_node_version(&self, display_path: &str) -> Option<String> {
+        let exe = strip_display_suffix(display_path);
+        if exe.is_empty() {
+            return None;
+        }
+
+        {
+            let state = self.state.lock().await;
+            if let Some((cached_exe, cached_version)) = &state.node_probe {
+                if cached_exe == exe {
+                    return cached_version.clone();
+                }
+            }
+        }
+
+        let mut cmd = Command::new(exe);
+        cmd.arg("-v");
+        #[cfg(target_os = "windows")]
+        suppress_console_window(&mut cmd);
+
+        let version = match cmd.output().await {
+            Ok(out) if out.status.success() => {
+                let raw = String::from_utf8_lossy(&out.stdout).trim().to_string();
+                // `node -v` 输出形如 `v24.22.3`
+                let trimmed = raw.trim_start_matches('v').trim().to_string();
+                if trimmed.is_empty() {
+                    None
+                } else {
+                    Some(trimmed)
+                }
+            }
+            _ => None,
+        };
+
+        let mut state = self.state.lock().await;
+        state.node_probe = Some((exe.to_string(), version.clone()));
+        version
     }
 
     /// Build the command string for display
@@ -650,7 +736,7 @@ impl ServiceManager {
     ) -> Result<(), String> {
         let (node_detected, node_path, _is_full) = self.detect_node(&app_handle).await;
         if !node_detected {
-            return Err("未检测到 Node.js 运行时环境，请先安装 Node.js 22 LTS 或更高版本".to_string());
+            return Err("未检测到 Node.js 运行时环境，请先安装 Node.js 24 LTS 或更高版本".to_string());
         }
 
         let port_check = self.check_port(port).await;
@@ -1145,5 +1231,42 @@ impl ServiceManager {
         state.logs.clear();
         let entry = state.append_log("system", "日志已被清空。");
         let _ = app_handle.emit("app:log-line", &entry);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{is_node_version_supported, strip_display_suffix, FULL_SIM_SUFFIX};
+
+    #[test]
+    fn node_version_gate_matches_require_esm_boundary() {
+        // 下限 22.12：这一对就是当初踩过的坑（22.11 ERR_REQUIRE_ESM / 22.12 修好）
+        assert!(!is_node_version_supported("22.11.0"));
+        assert!(is_node_version_supported("22.12.0"));
+        assert!(is_node_version_supported("22.23.4"));
+        assert!(is_node_version_supported("24.22.3"));
+        // 未来版本不能误判为过低
+        assert!(is_node_version_supported("25.0.0"));
+        assert!(is_node_version_supported("30.1.2"));
+        // 大版本够、小版本缺省
+        assert!(is_node_version_supported("24"));
+        assert!(!is_node_version_supported("21.7.3"));
+        // 解析不出来时按「无法判定」放行，不拿探测失败拦用户
+        assert!(is_node_version_supported(""));
+        assert!(is_node_version_supported("not-a-version"));
+    }
+
+    #[test]
+    fn display_suffix_is_stripped_before_spawning() {
+        let raw = "/usr/bin/node";
+        let display = format!("{}{}", raw, FULL_SIM_SUFFIX);
+        assert_eq!(strip_display_suffix(&display), raw);
+        // 没有后缀时保持原样
+        assert_eq!(strip_display_suffix(raw), raw);
+        // Windows 路径里的括号不能被误伤（曾经的 `split(" (")` 写法会切坏 x86）
+        let win = "C:\\Program Files (x86)\\nodejs\\node.exe";
+        assert_eq!(strip_display_suffix(win), win);
+        let win_display = format!("{}{}", win, FULL_SIM_SUFFIX);
+        assert_eq!(strip_display_suffix(&win_display), win);
     }
 }

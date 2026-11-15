@@ -135,6 +135,11 @@ export const HomePage: React.FC<HomePageProps> = ({
   const isRunning = status?.is_running ?? false;
   const isStarting = status?.is_starting || isStartingOrStopping;
   const isNodeMissing = !(status?.node_detected ?? true);
+  // Node 版本以后端 `node -v` 实测为准，拿不到就不带版本号（不写死）
+  const nodeVersion = status?.node_version?.trim() || null;
+  const nodeVersionTag = nodeVersion ? `Node ${nodeVersion.split(".")[0]}` : "Node";
+  // 检测到了 Node，但低于 openlearn-next 的下限（22.12）——Lite 版装到旧 Node 时常见
+  const isNodeTooOld = !isNodeMissing && status?.node_version_supported === false;
   const [logCopied, setLogCopied] = useState(false);
 
   const handleCopyLogs = async () => {
@@ -161,13 +166,40 @@ export const HomePage: React.FC<HomePageProps> = ({
                 未检测到系统 Node.js 运行时
               </h4>
               <p className="text-xs text-rose-700/80 dark:text-rose-300/80 mt-0.5">
-                当前运行为 Lite 便携版，依赖本机 Node.js 22 LTS 环境。请先安装后再启动服务。
+                当前运行为 Lite 便携版，依赖本机 Node.js 运行环境（推荐 24 LTS）。请先安装后再启动服务。
               </p>
             </div>
           </div>
           <button
             onClick={() => window.open("https://nodejs.org", "_blank")}
             className="flex items-center space-x-1.5 text-xs font-medium text-rose-700 dark:text-rose-300 bg-rose-100 hover:bg-rose-200 dark:bg-rose-900/60 dark:hover:bg-rose-800 px-3 py-1.5 rounded-lg border border-rose-300 dark:border-rose-700 transition cursor-pointer"
+          >
+            <span>前往下载 Node.js</span>
+            <ExternalLink className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
+      {/* Node 版本过低（Lite 版常见：装了 Node 18 / 22.11，require(esm) 直接崩） */}
+      {isNodeTooOld && (
+        <div className="bg-amber-50 dark:bg-amber-950/80 border border-amber-200 dark:border-amber-800/80 rounded-2xl p-4 flex items-center justify-between shadow-sm dark:shadow-lg dark:shadow-amber-950/40 animate-in fade-in">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400">
+              <AlertTriangle className="w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                当前 Node.js 版本过低：v{nodeVersion}
+              </h4>
+              <p className="text-xs text-amber-800/80 dark:text-amber-300/80 mt-0.5">
+                openlearn-next 需要 Node.js 22.12 及以上（推荐 24 LTS），更低版本会因
+                require(esm) 直接启动失败。
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => window.open("https://nodejs.org", "_blank")}
+            className="flex items-center space-x-1.5 text-xs font-medium text-amber-800 dark:text-amber-300 bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/60 dark:hover:bg-amber-800 px-3 py-1.5 rounded-lg border border-amber-300 dark:border-amber-700 transition cursor-pointer"
           >
             <span>前往下载 Node.js</span>
             <ExternalLink className="w-3.5 h-3.5" />
@@ -273,7 +305,9 @@ export const HomePage: React.FC<HomePageProps> = ({
             </span>
             <div className="mt-1">
               <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-                {status?.is_full_edition ? "Full 安装版 (内嵌 Node 22)" : "Lite 便携版 (系统 Node)"}
+                {status?.is_full_edition
+                  ? `Full 安装版 (内嵌 ${nodeVersionTag})`
+                  : `Lite 便携版 (系统 ${nodeVersionTag})`}
               </span>
               <p
                 className="text-[11px] text-slate-500 mt-0.5 truncate font-mono"

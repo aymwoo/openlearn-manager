@@ -24,7 +24,9 @@ let mockStatus: ServiceStatus = {
   port: 9000,
   cli_version: "latest",
   node_detected: true,
-  node_path: forceFullBrowser ? "resources/node/node (内嵌 Node 22 LTS)" : "/usr/bin/node",
+  node_path: forceFullBrowser ? "resources/node/node (内嵌 Node 24 LTS)" : "/usr/bin/node",
+  node_version: forceFullBrowser ? "24.22.3" : "24.1.0",
+  node_version_supported: true,
   is_full_edition: forceFullBrowser,
 };
 
@@ -41,7 +43,7 @@ let mockLogs: LogEntry[] = [
     timestamp: "19:40:02",
     stream: "system",
     message: forceFullBrowser
-      ? "OpenLearn 管理器就绪，已加载 Full 安装版内嵌 Node 22 运行时 (resources/node/node)"
+      ? "OpenLearn 管理器就绪，已加载 Full 安装版内嵌 Node 24 运行时 (resources/node/node)"
       : "OpenLearn 管理器就绪，已检测到系统 Node 运行时环境 (/usr/bin/node)",
   },
   {

@@ -38,7 +38,7 @@
       ↓
 [ Tauri 2：进程 / 托盘 / 单实例 / 配置 ]
       ↓ spawn
-[ Node ]  ← Full：内嵌便携 Node 22 LTS；Lite：系统 Node
+[ Node ]  ← Full：内嵌便携 Node 24 LTS；Lite：系统 Node
       ↓
 [ openlearn-next CLI ]  ← 默认 npx openlearn-next@latest，高级可钉死版本
       ↓
@@ -49,7 +49,7 @@
 | --- | --- |
 | 宿主 `-H` | **固定 `127.0.0.1`**，界面不可改 |
 | 包版本策略 | 默认 `@latest`；高级设置可钉死具体版本 |
-| Full 版 Node | 内嵌 / 钉死 **Node 22 LTS** |
+| Full 版 Node | 内嵌 / 钉死 **Node 24 LTS** |
 | Lite 版缺 Node | 首页（或顶部）**红条**提示 + 指向安装文档的链接 |
 | 「服务已在跑」 | 以 **本 GUI 拉起的子进程是否仍存活** 为准（不是单纯扫端口） |
 | 「停止」 | **结束该子进程**；不依赖单独的 CLI stop 命令 |
@@ -175,7 +175,7 @@
 | 项 | 约定 |
 | --- | --- |
 | 首发平台 | **Windows x64** |
-| Full | **安装包**，内嵌便携 Node 22 LTS |
+| Full | **安装包**，内嵌便携 Node 24 LTS |
 | Lite | **便携 zip**，依赖系统已安装 Node |
 | GUI 自身更新 | **不做自动更新**；用户手动下载新包安装/覆盖 |
 | 应用图标 | 先用占位图；正式品牌图标稍后提供 |

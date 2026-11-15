@@ -6,6 +6,10 @@ export interface ServiceStatus {
   cli_version?: string | null;
   node_detected: boolean;
   node_path?: string | null;
+  /** 后端 `node -v` 实测到的版本号（已去 `v`，如 "24.22.3"），探测不到时为 null */
+  node_version?: string | null;
+  /** 该版本是否满足 openlearn-next 的最低要求（>= 22.12，否则 require(esm) 会崩） */
+  node_version_supported?: boolean;
   is_full_edition: boolean;
 }
 

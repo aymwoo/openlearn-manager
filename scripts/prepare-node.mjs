@@ -12,9 +12,12 @@ const NODE_TARGET_DIR = path.resolve(RESOURCES_DIR, "node");
 const CACHE_DIR = path.resolve(ROOT_DIR, ".cache", "node-dist");
 
 // Default Node.js LTS version to bundle.
-// 注意：不要低于 22.12 —— openlearn-next 的打包产物里存在 require(esm) 调用，
+// 当前钉死 Node 24 LTS（Krypton），与 openlearn-next 平台运行时要求对齐。
+// 兼容下限：不要低于 22.12 —— openlearn-next 的打包产物里存在 require(esm) 调用，
 // 而 Node 对 require(esm) 的支持是 22.12 起才默认开启（22.11.0 会直接 ERR_REQUIRE_ESM）。
-const DEFAULT_NODE_VERSION = "22.23.4";
+// 改这个版本号时，务必同步：.github/workflows/release.yml 的 cache key（node-runtime-...-vX）、
+// README / openlearn-manager.md 的说明，以及界面与 Rust 侧提示文案里的版本号。
+const DEFAULT_NODE_VERSION = "24.22.3";
 
 // Parse CLI flags
 const args = process.argv.slice(2);

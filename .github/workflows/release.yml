@@ -50,7 +50,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -71,7 +71,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .cache/node-dist
-          key: node-runtime-${{ matrix.platform }}-v22.23.4
+          key: node-runtime-${{ matrix.platform }}-v24.22.3
           restore-keys: |
             node-runtime-${{ matrix.platform }}-
 
@@ -144,9 +144,9 @@ jobs:
           Write-Output "Staged portable Lite zip"
 
       # =========================================================================
-      # 2. BUILD FULL EDITION (Embedded Node 22 LTS)
+      # 2. BUILD FULL EDITION (Embedded Node 24 LTS)
       # =========================================================================
-      - name: Prepare Full Edition (Download & Extract Node 22 LTS for ${{ matrix.platform }})
+      - name: Prepare Full Edition (Download & Extract Node 24 LTS for ${{ matrix.platform }})
         if: ${{ github.event_name == 'push' || inputs.edition == 'both' || inputs.edition == 'full' }}
         run: node scripts/prepare-node.mjs --edition full --platform ${{ matrix.platform }}
 
@@ -169,7 +169,7 @@ jobs:
             echo "Staged Full bundle: release-artifacts/${newname}"
           done
 
-      # --- 绿色版（免安装 zip）：Full 版额外带内嵌 Node 22 LTS ---
+      # --- 绿色版（免安装 zip）：Full 版额外带内嵌 Node 24 LTS ---
       - name: Package Full portable (zip)
         if: ${{ matrix.os == 'windows-latest' && (github.event_name == 'push' || inputs.edition == 'both' || inputs.edition == 'full') }}
         shell: pwsh
@@ -191,7 +191,7 @@ jobs:
             "整个文件夹拷到 U 盘即可连数据一起带走。",
             "删掉本文件则恢复为默认行为（写入系统用户目录）。",
             "",
-            "resources\node 是内嵌的 Node 22 LTS，本机无需另外安装 Node.js。"
+            "resources\node 是内嵌的 Node 24 LTS，本机无需另外安装 Node.js。"
           ) -join "`r`n"
           Set-Content -Path "$stage/portable.txt" -Value $note -Encoding utf8BOM -NoNewline
           Compress-Archive -Path $stage -DestinationPath "release-artifacts/OpenLearn.Manager_${ver}_x64-portable-Full.zip" -CompressionLevel Optimal

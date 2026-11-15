@@ -113,7 +113,29 @@ export const AboutPage: React.FC<AboutPageProps> = ({ status }) => {
           <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800/80 space-y-1">
             <span className="text-slate-500 font-medium">打包模式</span>
             <p className="text-slate-800 dark:text-slate-200 font-medium">
-              {status?.is_full_edition ? "Full 版（内嵌 Node 22 LTS）" : "Lite 版（依赖系统 Node）"}
+              {status?.is_full_edition ? "Full 版（内嵌 Node 运行时）" : "Lite 版（依赖系统 Node）"}
+            </p>
+          </div>
+
+          <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800/80 space-y-1">
+            <span className="text-slate-500 font-medium">Node 版本</span>
+            <p className="text-slate-800 dark:text-slate-200 font-medium flex items-center space-x-1.5">
+              <span className="font-mono">
+                {status?.node_version ? `v${status.node_version}` : "未探测到"}
+              </span>
+              {status?.node_version && (
+                <span
+                  className={
+                    status.node_version_supported === false
+                      ? "px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800/60"
+                      : "px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800/60"
+                  }
+                >
+                  {status.node_version_supported === false
+                    ? "过低（需 ≥ 22.12）"
+                    : "兼容 openlearn-next"}
+                </span>
+              )}
             </p>
           </div>
 
